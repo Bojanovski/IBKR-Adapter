@@ -5,8 +5,11 @@ cmake_minimum_required (VERSION 3.8)
 
 project ("IBKR-Adapter")
 
+include_directories(inc)
+
 set(SOURCE_FILES
-    src/IBKR-Adapter.cpp                             /
+    src/main.cpp                                     /
+    src/IBKRClient.cpp                               /
 
     src/ib_api_v9.76/ContractCondition.cpp           /
     src/ib_api_v9.76/DefaultEWrapper.cpp             /
@@ -32,7 +35,8 @@ set(SOURCE_FILES
 )
 
 set(HEADER_FILES 
-    src/IBKR-Adapter.h                               /
+    inc/IBKRAdapter.h                                /
+    src/IBKRClient.h                                 /
 
     src/ib_api_v9.76/CommissionReport.h              /
     src/ib_api_v9.76/CommonDefs.h                    /
