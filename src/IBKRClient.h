@@ -11,11 +11,14 @@
 #include <memory>
 #include <atomic>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 
 class IBKRClient : public IBKRAdapter, public EWrapper
 {
 public:
-	IBKRClient();
+	IBKRClient(unsigned long signalWaitTimeout = 2000);
 	virtual ~IBKRClient();
 
 	// IBKRAdapter implementations
@@ -23,9 +26,11 @@ public:
 	virtual bool Connect() override;
 	virtual bool IsConnected() override;
 	virtual void Disconnect() override;
+	virtual void GetSupportedFeatures(ibkr::SupportedFeatures* supportedFeatures) override;
 	virtual void StartListeningForMessages() override;
 	virtual void StopListeningForMessages() override;
-	virtual void PlaceLimitOrder() override;
+	virtual void GetStockContracts(const ibkr::StockContractQuery& query, ibkr::ContractQueryResult* result) override;
+	virtual void PlaceLimitOrder(const ibkr::PlaceOrderInfo& placeOrderInfo, ibkr::PlaceOrderResult* result) override;
 
 	// EWrapper implementations
 	virtual void tickPrice(TickerId tickerId, TickType field, double price, const TickAttrib& attrib) override;
@@ -127,17 +132,37 @@ public:
 	virtual void completedOrdersEnd() override;
 
 private:
+	// A message listening loop that runs in a separate thread
 	void MessageListeningLoop();
 
 private:
 	EReaderOSSignal mOSSignal;
+	unsigned long mSignalWaitTimeout;
+
 	std::unique_ptr<EClientSocket> mClientSocketPtr;
 	bool mExtraAuth;
 	std::unique_ptr<EReader> mReaderPtr;
 	std::atomic<bool> mListenForMessages;
 	std::thread mMessgeListeningThread;
+
+	// Logging
 	ibkr::LogFunction *mLogFunctionPtr;
 	void* mLogObjectPtr;
 
+	// Order placement
+	std::mutex mOrderIdMutex;
+	std::condition_variable mOrderIdConditionVariable;
 	OrderId mOrderId;
+
+	// Requesting contract data
+	std::mutex mContractRequestMutex;
+	std::condition_variable mContractRequestConditionVariable;
+	int mRequestId;
+	struct ContractRequestResponse
+	{
+		void Reset();
+		bool mIsDone;
+		std::vector<ContractDetails> mReceivedContractDetails;
+	};
+	std::map<int, ContractRequestResponse> mRequestIdToContractRequestResponse;
 };

@@ -1,16 +1,36 @@
 ﻿
 #include "IBKRClient.h"
 
-IBKRClient::IBKRClient()
+using namespace ibkr;
+
+void fromContractInfoToContract(Contract& contractOut, const ibkr::ContractInfo& contractInfoIn)
+{
+    contractOut.conId = contractInfoIn.Id;
+    contractOut.symbol = contractInfoIn.Symbol;
+    contractOut.currency = contractInfoIn.Currency;
+    contractOut.exchange = contractInfoIn.Exchange;
+}
+
+void fromContractDetailsToContractInfo(ibkr::ContractInfo& contractInfoOut, const ContractDetails& contractDetailsIn)
+{
+    contractInfoOut.Id = contractDetailsIn.contract.conId;
+    contractInfoOut.Symbol = contractDetailsIn.contract.symbol;
+    contractInfoOut.Currency = contractDetailsIn.contract.currency;
+    contractInfoOut.Exchange = contractDetailsIn.contract.exchange;
+}
+
+IBKRClient::IBKRClient(unsigned long signalWaitTimeout)
     : EWrapper()
-    , mOSSignal(2000) // 2-seconds timeout
-    , mClientSocketPtr(std::make_unique<EClientSocket>((EWrapper *)this, &mOSSignal))
+    , mOSSignal(signalWaitTimeout)
+    , mSignalWaitTimeout(signalWaitTimeout)
+    , mClientSocketPtr(std::make_unique<EClientSocket>((EWrapper*)this, &mOSSignal))
     , mExtraAuth(false)
     , mListenForMessages(false)
     , mMessgeListeningThread()
     , mLogFunctionPtr(nullptr)
     , mLogObjectPtr(nullptr)
     , mOrderId(-1)
+    , mRequestId(0)
 {
 
 }
@@ -69,6 +89,12 @@ void IBKRClient::Disconnect()
     mClientSocketPtr->eDisconnect();
 }
 
+void IBKRClient::GetSupportedFeatures(SupportedFeatures* supportedFeatures)
+{
+    supportedFeatures->PlaceLimitOrders = true;
+    supportedFeatures->PlaceMarketOrders = false;
+}
+
 void IBKRClient::StartListeningForMessages()
 {
     if (mListenForMessages) return; //already listening
@@ -84,13 +110,102 @@ void IBKRClient::StopListeningForMessages()
     if (mMessgeListeningThread.joinable()) mMessgeListeningThread.join();
 }
 
-void IBKRClient::PlaceLimitOrder()
+
+#include <chrono>
+using namespace std::chrono_literals;
+
+void IBKRClient::GetStockContracts(const ibkr::StockContractQuery& query, ibkr::ContractQueryResult* result)
 {
+    Contract contract;
+    contract.symbol = query.Symbol;
+    contract.secType = "STK";
+    contract.currency = query.Currency;
+    contract.exchange = query.Exchange;
+    mClientSocketPtr->reqContractDetails(mRequestId, contract);
+
+    // Wait until the data is received
+    std::unique_lock<std::mutex> lk(mContractRequestMutex);
+    mRequestIdToContractRequestResponse[mRequestId].Reset();
+    bool waitResultSuccess = mContractRequestConditionVariable.wait_for(lk, mSignalWaitTimeout * 1ms, [this] {return this->mRequestIdToContractRequestResponse[this->mRequestId].mIsDone; });
+
+   if (waitResultSuccess)
+   {
+       // Get the contracts information
+       result->RequestId = mRequestId;
+       result->ContractInfoArray.resize(mRequestIdToContractRequestResponse[mRequestId].mReceivedContractDetails.size());
+       int i = 0;
+       for (auto& contractDetails : mRequestIdToContractRequestResponse[mRequestId].mReceivedContractDetails)
+       {
+           fromContractDetailsToContractInfo(result->ContractInfoArray[i], contractDetails);
+           ++i;
+       }
+       result->Status = ResultStatus::Success;
+   }
+   else
+   {
+       result->RequestId = -1;
+       result->ContractInfoArray.clear();
+       result->Status = ResultStatus::WaitTimeout;
+   }
+
+    // Clear the data to preserve memory
+    mRequestIdToContractRequestResponse[mRequestId].Reset();
+
+    // Increase the request id for future requests
+    ++mRequestId;
+
+    // Manual unlocking is done before notifying, to avoid waking up
+    // the waiting thread only to block again
+    lk.unlock();
+    mContractRequestConditionVariable.notify_one();
+}
+
+void IBKRClient::PlaceLimitOrder(const ibkr::PlaceOrderInfo& placeOrderInfo, ibkr::PlaceOrderResult* result)
+{
+    // Set the order info
     Order order;
-    order.action = "something goes here";
+    switch (placeOrderInfo.Action)
+    {
+    case ibkr::ActionType::Buy:
+        order.action = "BUY";
+        break;
+    case ibkr::ActionType::Sell:
+        order.action = "SELL";
+        break;
+    }
     order.orderType = "LMT";
-    order.totalQuantity = 100;
-    order.lmtPrice = 220.0;
+    order.totalQuantity = placeOrderInfo.Quantity;
+    order.lmtPrice = placeOrderInfo.Price;
+
+    // Set the contract info
+    Contract contract;
+    fromContractInfoToContract(contract, placeOrderInfo.ConInfo);
+
+    // Wait until the order id gets updated
+    std::unique_lock<std::mutex> lk(mOrderIdMutex);
+    bool waitResultSuccess = mOrderIdConditionVariable.wait_for(lk, mSignalWaitTimeout * 1ms, [this] {return mOrderId != -1; });
+
+    if (waitResultSuccess)
+    {
+        // Get the new order id value and invalidate it
+        OrderId orderId = mOrderId;
+        mOrderId = -1;
+
+        // Place the order and immediately request a new order id
+        mClientSocketPtr->placeOrder(orderId, contract, order);
+        mClientSocketPtr->reqIds(-1);
+        result->Id = orderId;
+        result->Status = ResultStatus::Success;
+    }
+    else
+    {
+        result->Id = -1;
+        result->Status = ResultStatus::WaitTimeout;
+    }
+
+    // Unlock and signal
+    lk.unlock();
+    mOrderIdConditionVariable.notify_one();
 }
 
 
@@ -160,12 +275,18 @@ void IBKRClient::accountDownloadEnd(const std::string& accountName)
 
 void IBKRClient::nextValidId(OrderId orderId)
 {
-    mLogFunctionPtr(mLogObjectPtr, ("Received the next valid Id: " + std::to_string(orderId)).c_str());
+    std::unique_lock<std::mutex> lk(mOrderIdMutex);
+    mLogFunctionPtr(mLogObjectPtr, LogType::Info, ("Received the next valid Id: " + std::to_string(orderId)).c_str());
     mOrderId = orderId;
+    lk.unlock();
+    mOrderIdConditionVariable.notify_one();
 }
 
 void IBKRClient::contractDetails(int reqId, const ContractDetails& contractDetails)
 {
+    // Append the contract
+    std::unique_lock<std::mutex> lk(mContractRequestMutex);
+    mRequestIdToContractRequestResponse[reqId].mReceivedContractDetails.push_back(contractDetails);
 }
 
 void IBKRClient::bondContractDetails(int reqId, const ContractDetails& contractDetails)
@@ -174,6 +295,12 @@ void IBKRClient::bondContractDetails(int reqId, const ContractDetails& contractD
 
 void IBKRClient::contractDetailsEnd(int reqId)
 {
+    // Mark the request as done and send the signal
+    std::unique_lock<std::mutex> lk(mContractRequestMutex);
+    mRequestIdToContractRequestResponse[reqId].mIsDone = true;
+    // First unlock and then notify is a more efficient way
+    lk.unlock();
+    mContractRequestConditionVariable.notify_one();
 }
 
 void IBKRClient::execDetails(int reqId, const Contract& contract, const Execution& execution)
@@ -186,6 +313,19 @@ void IBKRClient::execDetailsEnd(int reqId)
 
 void IBKRClient::error(int id, int errorCode, const std::string& errorString)
 {
+    LogType logType;
+    switch (id)
+    {
+        // Callbacks to IBApi::EWrapper::error with errorId as -1 do not represent true 'errors'
+        // but only notifications that a connection has been made successfully to the IB market data farms.
+    case -1:
+        logType = LogType::Info;
+        break;
+    default:
+        logType = LogType::Error;
+        break;
+    }
+
     switch (errorCode)
     {
     case 502: // socket cannot be opened
@@ -193,7 +333,7 @@ void IBKRClient::error(int id, int errorCode, const std::string& errorString)
         break;
     }
 
-    mLogFunctionPtr(mLogObjectPtr, errorString.c_str());
+    mLogFunctionPtr(mLogObjectPtr, logType, errorString.c_str());
 }
 
 void IBKRClient::updateMktDepth(TickerId id, int position, int operation, int side, double price, int size)
@@ -210,7 +350,7 @@ void IBKRClient::updateNewsBulletin(int msgId, int msgType, const std::string& n
 
 void IBKRClient::managedAccounts(const std::string& accountsList)
 {
-    mLogFunctionPtr(mLogObjectPtr, ("Account List: " + accountsList).c_str());
+    mLogFunctionPtr(mLogObjectPtr, LogType::Info, ("Account List: " + accountsList).c_str());
 }
 
 void IBKRClient::receiveFA(faDataType pFaDataType, const std::string& cxml)
@@ -456,4 +596,10 @@ void IBKRClient::MessageListeningLoop()
         // Process it
         if (mReaderPtr) mReaderPtr->processMsgs();
     }
+}
+
+void IBKRClient::ContractRequestResponse::Reset()
+{
+    mIsDone = false;
+    mReceivedContractDetails.clear();
 }
