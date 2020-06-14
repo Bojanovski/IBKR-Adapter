@@ -30,7 +30,7 @@ public:
 	virtual void StartListeningForMessages() override;
 	virtual void StopListeningForMessages() override;
 	virtual void GetStockContracts(const ibkr::StockContractQuery& query, ibkr::ContractQueryResult* result) override;
-	virtual void PlaceLimitOrder(const ibkr::PlaceOrderInfo& placeOrderInfo, ibkr::PlaceOrderResult* result) override;
+	virtual void PlaceLimitOrder(const ibkr::LimitOrderInfo& orderInfo, ibkr::PlaceOrderResult* result) override;
 
 	// EWrapper implementations
 	virtual void tickPrice(TickerId tickerId, TickType field, double price, const TickAttrib& attrib) override;
@@ -161,8 +161,8 @@ private:
 	struct ContractRequestResponse
 	{
 		void Reset();
-		bool mIsDone;
-		std::vector<ContractDetails> mReceivedContractDetails;
+		bool mIsDone{ false };
+		std::vector<ibkr::ContractInfo> mReceivedContractInfos;
 	};
 	std::map<int, ContractRequestResponse> mRequestIdToContractRequestResponse;
 };

@@ -60,16 +60,19 @@ int main()
 				ibkr::StockContractQuery query = { inStr, "", "USD" };
 				ibkr::ContractQueryResult result;
 				impl->GetStockContracts(query, &result);
+				if (result.Status != ibkr::ResultStatus::Success) continue;
 				contractInfo = result.ContractInfoArray[0];
-				cout << "Selected contract: " << contractInfo.Exchange << ":" << contractInfo.Symbol << " (" << contractInfo.Currency << ")" << endl;
+				cout << "Selected contract: " << contractInfo.ToShortString() << endl;
 			}
 				break;
 
 			case 2:
 			{
-				ibkr::PlaceOrderInfo placeInfo = { ActionType::Buy, 900.0, (double)atoi(inStr.c_str()), contractInfo };
+				ibkr::LimitOrderInfo placeInfo = { ActionType::Buy, 900.0, (double)atoi(inStr.c_str()), &contractInfo };
 				PlaceOrderResult result;
 				impl->PlaceLimitOrder(placeInfo, &result);
+				if (result.Status != ibkr::ResultStatus::Success) continue;
+				cout << "Order placed: " << placeInfo.ToShortString() << " id: " << result.Id << endl;
 			}
 				break;
 

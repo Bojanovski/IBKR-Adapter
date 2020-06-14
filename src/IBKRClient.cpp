@@ -132,13 +132,7 @@ void IBKRClient::GetStockContracts(const ibkr::StockContractQuery& query, ibkr::
    {
        // Get the contracts information
        result->RequestId = mRequestId;
-       result->ContractInfoArray.resize(mRequestIdToContractRequestResponse[mRequestId].mReceivedContractDetails.size());
-       int i = 0;
-       for (auto& contractDetails : mRequestIdToContractRequestResponse[mRequestId].mReceivedContractDetails)
-       {
-           fromContractDetailsToContractInfo(result->ContractInfoArray[i], contractDetails);
-           ++i;
-       }
+       result->ContractInfoArray = mRequestIdToContractRequestResponse[mRequestId].mReceivedContractInfos;
        result->Status = ResultStatus::Success;
    }
    else
@@ -160,11 +154,11 @@ void IBKRClient::GetStockContracts(const ibkr::StockContractQuery& query, ibkr::
     mContractRequestConditionVariable.notify_one();
 }
 
-void IBKRClient::PlaceLimitOrder(const ibkr::PlaceOrderInfo& placeOrderInfo, ibkr::PlaceOrderResult* result)
+void IBKRClient::PlaceLimitOrder(const ibkr::LimitOrderInfo& orderInfo, ibkr::PlaceOrderResult* result)
 {
     // Set the order info
     Order order;
-    switch (placeOrderInfo.Action)
+    switch (orderInfo.Action)
     {
     case ibkr::ActionType::Buy:
         order.action = "BUY";
@@ -174,12 +168,12 @@ void IBKRClient::PlaceLimitOrder(const ibkr::PlaceOrderInfo& placeOrderInfo, ibk
         break;
     }
     order.orderType = "LMT";
-    order.totalQuantity = placeOrderInfo.Quantity;
-    order.lmtPrice = placeOrderInfo.Price;
+    order.totalQuantity = orderInfo.Quantity;
+    order.lmtPrice = orderInfo.Price;
 
     // Set the contract info
     Contract contract;
-    fromContractInfoToContract(contract, placeOrderInfo.ConInfo);
+    fromContractInfoToContract(contract, *orderInfo.ConInfoPtr);
 
     // Wait until the order id gets updated
     std::unique_lock<std::mutex> lk(mOrderIdMutex);
@@ -239,14 +233,17 @@ void IBKRClient::tickEFP(TickerId tickerId, TickType tickType, double basisPoint
 
 void IBKRClient::orderStatus(OrderId orderId, const std::string& status, double filled, double remaining, double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, const std::string& whyHeld, double mktCapPrice)
 {
+    mLogFunctionPtr(mLogObjectPtr, LogType::Info, std::string("Got order: " + std::to_string(orderId) + " status: " + status).c_str());
 }
 
-void IBKRClient::openOrder(OrderId orderId, const Contract&, const Order&, const OrderState&)
+void IBKRClient::openOrder(OrderId orderId, const Contract& contract, const Order& order, const OrderState& orderState)
 {
+    mLogFunctionPtr(mLogObjectPtr, LogType::Info, std::string("Got open order: " + std::to_string(orderId)).c_str());
 }
 
 void IBKRClient::openOrderEnd()
 {
+    mLogFunctionPtr(mLogObjectPtr, LogType::Info, std::string("Got open order feed end").c_str());
 }
 
 void IBKRClient::winError(const std::string& str, int lastError)
@@ -276,7 +273,7 @@ void IBKRClient::accountDownloadEnd(const std::string& accountName)
 void IBKRClient::nextValidId(OrderId orderId)
 {
     std::unique_lock<std::mutex> lk(mOrderIdMutex);
-    mLogFunctionPtr(mLogObjectPtr, LogType::Info, ("Received the next valid Id: " + std::to_string(orderId)).c_str());
+    mLogFunctionPtr(mLogObjectPtr, LogType::Info, ("Got new valid Id: " + std::to_string(orderId)).c_str());
     mOrderId = orderId;
     lk.unlock();
     mOrderIdConditionVariable.notify_one();
@@ -286,7 +283,10 @@ void IBKRClient::contractDetails(int reqId, const ContractDetails& contractDetai
 {
     // Append the contract
     std::unique_lock<std::mutex> lk(mContractRequestMutex);
-    mRequestIdToContractRequestResponse[reqId].mReceivedContractDetails.push_back(contractDetails);
+    mRequestIdToContractRequestResponse[reqId].mReceivedContractInfos.push_back(ContractInfo());
+    ContractInfo &conInfo = mRequestIdToContractRequestResponse[reqId].mReceivedContractInfos.back();
+    fromContractDetailsToContractInfo(conInfo, contractDetails);
+    mLogFunctionPtr(mLogObjectPtr, LogType::Info, ("Got " + conInfo.ToShortString() + " from request: " + std::to_string(reqId)).c_str());
 }
 
 void IBKRClient::bondContractDetails(int reqId, const ContractDetails& contractDetails)
@@ -297,6 +297,8 @@ void IBKRClient::contractDetailsEnd(int reqId)
 {
     // Mark the request as done and send the signal
     std::unique_lock<std::mutex> lk(mContractRequestMutex);
+    int count = (int)mRequestIdToContractRequestResponse[reqId].mReceivedContractInfos.size();
+    mLogFunctionPtr(mLogObjectPtr, LogType::Info, ("Got " + std::to_string(count) + " total contracts from request: " + std::to_string(reqId)).c_str());
     mRequestIdToContractRequestResponse[reqId].mIsDone = true;
     // First unlock and then notify is a more efficient way
     lk.unlock();
@@ -601,5 +603,5 @@ void IBKRClient::MessageListeningLoop()
 void IBKRClient::ContractRequestResponse::Reset()
 {
     mIsDone = false;
-    mReceivedContractDetails.clear();
+    mReceivedContractInfos.clear();
 }

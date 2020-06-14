@@ -22,13 +22,15 @@ namespace ibkr
 		std::string Symbol;
 		std::string Exchange;
 		std::string Currency;
+
+		std::string ToShortString() const { return (Exchange + ":" + Symbol + "(" + Currency + ")"); }
 	};
 	enum class ResultStatus { Success, Failure, WaitTimeout };
 	struct ContractQueryResult
 	{
 		std::vector<ContractInfo> ContractInfoArray;
-		int RequestId = -1;
-		ResultStatus Status;
+		int RequestId{ -1 };
+		ResultStatus Status{ ResultStatus::Failure };
 	};
 
 	//
@@ -39,19 +41,26 @@ namespace ibkr
 		bool PlaceLimitOrders : 1;
 		bool PlaceMarketOrders : 1;
 	};
-	enum class ActionType { Buy, Sell };
-	struct PlaceOrderInfo
+	enum class ActionType { Buy = 0, Sell = 1 };
+	inline std::string ActionTypeToString(const ActionType& at) {switch (at){case ActionType::Buy:return "BUY"; case ActionType::Sell:return "SELL"; default: return "";}}
+	struct LimitOrderInfo
 	{
 		ActionType Action;
 		double Price;
 		double Quantity;
-		ContractInfo ConInfo;
+		ContractInfo *ConInfoPtr;
+
+		std::string ToShortString() const { 
+			return (ActionTypeToString(Action) + ":" +
+				std::to_string((int)Quantity) + "-" + ConInfoPtr->Symbol + "@" +
+				std::to_string(Price) + "(" + ConInfoPtr->Currency + ")");
+	}
 	};
 	typedef long OrderId;
 	struct PlaceOrderResult
 	{
 		OrderId Id{ -1 };
-		ResultStatus Status;
+		ResultStatus Status{ ResultStatus::Failure };
 	};
 	struct StockContractQuery
 	{
@@ -78,5 +87,5 @@ public:
 
 	virtual void GetStockContracts(const ibkr::StockContractQuery& query, ibkr::ContractQueryResult* result) = 0;
 
-	virtual void PlaceLimitOrder(const ibkr::PlaceOrderInfo& placeOrderInfo, ibkr::PlaceOrderResult* result) = 0;
+	virtual void PlaceLimitOrder(const ibkr::LimitOrderInfo& orderInfo, ibkr::PlaceOrderResult* result) = 0;
 };
