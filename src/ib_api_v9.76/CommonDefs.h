@@ -8,17 +8,17 @@
 typedef long TickerId;
 typedef long OrderId;
 
-enum faDataType { GROUPS=1, PROFILES, ALIASES } ;
+enum class faDataType { GROUPS=1, PROFILES, ALIASES } ;
 
 inline const char* faDataTypeStr ( faDataType pFaDataType )
 {
 	switch (pFaDataType) {
-		case GROUPS:
-			return "GROUPS";
-		case PROFILES:
-			return "PROFILES";
-		case ALIASES:
-			return "ALIASES";
+	case faDataType::GROUPS:
+		return "GROUPS";
+	case faDataType::PROFILES:
+		return "PROFILES";
+	case faDataType::ALIASES:
+		return "ALIASES";
 	}
 	return 0 ;
 }

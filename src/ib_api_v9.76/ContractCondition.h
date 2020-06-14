@@ -8,7 +8,7 @@
 #include "OperatorCondition.h"
 
 class TWSAPIDLLEXP ContractCondition : public OperatorCondition {
-	int m_conId;
+	int m_conId{ -1 };
 	std::string m_exchange;
 
 public:

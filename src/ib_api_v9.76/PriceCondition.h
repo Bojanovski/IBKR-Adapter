@@ -10,8 +10,8 @@
 class TWSAPIDLLEXP PriceCondition : public ContractCondition {
 	friend OrderCondition;
 
-	double m_price;
-	int m_triggerMethod;
+	double m_price{ 0.0 };
+	int m_triggerMethod{ -1 };
 
 	virtual std::string valueToString() const;
 	virtual void valueFromString(const std::string &v);

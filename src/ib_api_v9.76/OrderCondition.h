@@ -12,7 +12,7 @@
 
 class TWSAPIDLLEXP OrderCondition : public IExternalizable {
 public:
-	enum OrderConditionType {
+	enum class OrderConditionType {
 		Price = 1,
 		Time = 3,
 		Margin = 4,

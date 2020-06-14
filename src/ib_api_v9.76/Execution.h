@@ -20,6 +20,7 @@ struct Execution
 		avgPrice = 0;
 		evMultiplier = 0;
         lastLiquidity = 0;
+		liquidation = 0;
 	}
 
 	std::string	execId;

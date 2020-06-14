@@ -66,30 +66,30 @@ const char* EDecoder::processTickPriceMsg(const char* ptr, const char* endPtr) {
 
 	// process ver 2 fields
 	{
-		TickType sizeTickType = NOT_SET;
+		TickType sizeTickType = TickType::NOT_SET;
 		switch( (TickType)tickTypeInt) {
-		case BID:
-			sizeTickType = BID_SIZE;
+		case TickType::BID:
+			sizeTickType = TickType::BID_SIZE;
 			break;
-		case ASK:
-			sizeTickType = ASK_SIZE;
+		case TickType::ASK:
+			sizeTickType = TickType::ASK_SIZE;
 			break;
-		case LAST:
-			sizeTickType = LAST_SIZE;
+		case TickType::LAST:
+			sizeTickType = TickType::LAST_SIZE;
 			break;
-		case DELAYED_BID:
-			sizeTickType = DELAYED_BID_SIZE;
+		case TickType::DELAYED_BID:
+			sizeTickType = TickType::DELAYED_BID_SIZE;
 			break;
-		case DELAYED_ASK:
-			sizeTickType = DELAYED_ASK_SIZE;
+		case TickType::DELAYED_ASK:
+			sizeTickType = TickType::DELAYED_ASK_SIZE;
 			break;
-		case DELAYED_LAST:
-			sizeTickType = DELAYED_LAST_SIZE;
+		case TickType::DELAYED_LAST:
+			sizeTickType = TickType::DELAYED_LAST_SIZE;
 			break;
 		default:
 			break;
 		}
-		if( sizeTickType != NOT_SET)
+		if( sizeTickType != TickType::NOT_SET)
 			m_pEWrapper->tickSize( tickerId, sizeTickType, size);
 	}
 
@@ -141,7 +141,7 @@ const char* EDecoder::processTickOptionComputationMsg(const char* ptr, const cha
 		delta = DBL_MAX;
 	}
 
-	if( version >= 6 || tickTypeInt == MODEL_OPTION || tickTypeInt == DELAYED_MODEL_OPTION_COMPUTATION) { // introduced in version == 5
+	if( version >= 6 || tickTypeInt == (int)TickType::MODEL_OPTION || tickTypeInt == (int)TickType::DELAYED_MODEL_OPTION_COMPUTATION) { // introduced in version == 5
 
 		DECODE_FIELD( optPrice);
 		DECODE_FIELD( pvDividend);
@@ -1751,9 +1751,9 @@ int EDecoder::processConnectAck(const char*& beginPtr, const char* endPtr)
 			m_pEWrapper->connectAck();
 		}
 
-		int processed = ptr - beginPtr;
+		__int64 processed = ptr - beginPtr;
 		beginPtr = ptr;
-		return processed;
+		return (int)processed;
 	}
 	catch(const std::exception& e) {
 		m_pEWrapper->error( NO_VALID_ID, SOCKET_EXCEPTION.code(), SOCKET_EXCEPTION.msg() + e.what());
@@ -2495,9 +2495,9 @@ int EDecoder::parseAndProcessMsg(const char*& beginPtr, const char* endPtr) {
 		if (!ptr)
 			return 0;
 
-		int processed = ptr - beginPtr;
+		__int64 processed = ptr - beginPtr;
 		beginPtr = ptr;
-		return processed;
+		return (int)processed;
 	}
 	catch(const std::exception& e) {
 		m_pEWrapper->error( NO_VALID_ID, SOCKET_EXCEPTION.code(), SOCKET_EXCEPTION.msg() + e.what());

@@ -8,7 +8,7 @@
 #include "OrderCondition.h"
 
 class TWSAPIDLLEXP OperatorCondition : public OrderCondition {
-	bool m_isMore;
+	bool m_isMore{ false };
 
 protected:
 	virtual std::string valueToString() const = 0;

@@ -10,7 +10,7 @@
 class TWSAPIDLLEXP VolumeCondition : public ContractCondition {
 	friend OrderCondition;
 
-	int m_volume;
+	int m_volume{ -1 };
 
 protected:
 	VolumeCondition() { }

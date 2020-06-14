@@ -23,7 +23,7 @@
 #include "HistoricalTickBidAsk.h"
 #include "HistoricalTickLast.h"
 
-enum TickType { BID_SIZE, BID, ASK, ASK_SIZE, LAST, LAST_SIZE,
+enum class TickType { BID_SIZE, BID, ASK, ASK_SIZE, LAST, LAST_SIZE,
 				HIGH, LOW, VOLUME, CLOSE,
 				BID_OPTION_COMPUTATION,
 				ASK_OPTION_COMPUTATION,
@@ -112,7 +112,7 @@ typedef std::vector<HistogramEntry> HistogramDataVector;
 
 
 inline bool isPrice( TickType tickType) {
-	return tickType == BID || tickType == ASK || tickType == LAST || tickType == DELAYED_BID || tickType == DELAYED_ASK || tickType == DELAYED_LAST;
+	return tickType == TickType::BID || tickType == TickType::ASK || tickType == TickType::LAST || tickType == TickType::DELAYED_BID || tickType == TickType::DELAYED_ASK || tickType == TickType::DELAYED_LAST;
 }
 
 struct Contract;

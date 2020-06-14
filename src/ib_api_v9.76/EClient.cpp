@@ -69,7 +69,7 @@ void EClient::EncodeContract(std::ostream& os, const Contract &contract)
 void EClient::EncodeTagValueList(std::ostream& os, const TagValueListSPtr &tagValueList) 
 {
     std::string tagValueListStr("");
-    const int tagValueListCount = tagValueList.get() ? tagValueList->size() : 0;
+    const int tagValueListCount = tagValueList.get() ? (int)tagValueList->size() : 0;
 
     if (tagValueListCount > 0) {
         for (int i = 0; i < tagValueListCount; ++i) {
@@ -112,10 +112,11 @@ EClient::EClient( EWrapper *ptr, ETransport *pTransport)
     : m_pEWrapper(ptr)
     , m_transport(pTransport)
     , m_clientId(-1)
-    , m_connState(CS_DISCONNECTED)
+    , m_connState(ConnState::CS_DISCONNECTED)
     , m_extraAuth(false)
     , m_serverVersion(0)
     , m_useV100Plus(true)
+    , m_port(-1)
 {
 }
 
@@ -130,12 +131,12 @@ EClient::ConnState EClient::connState() const
 
 bool EClient::isConnected() const
 {
-    return m_connState == CS_CONNECTED;
+    return m_connState == ConnState::CS_CONNECTED;
 }
 
 bool EClient::isConnecting() const
 {
-    return m_connState == CS_CONNECTING;
+    return m_connState == ConnState::CS_CONNECTING;
 }
 
 void EClient::eConnectBase()
@@ -146,7 +147,7 @@ void EClient::eDisconnectBase()
 {
     m_TwsTime.clear();
     m_serverVersion = 0;
-    m_connState = CS_DISCONNECTED;
+    m_connState = ConnState::CS_DISCONNECTED;
     m_extraAuth = false;
     m_clientId = -1;
 }
@@ -277,7 +278,7 @@ void EClient::reqMktData(TickerId tickerId, const Contract& contract,
     if( contract.secType == "BAG")
     {
         const Contract::ComboLegList* const comboLegs = contract.comboLegs.get();
-        const int comboLegsCount = comboLegs ? comboLegs->size() : 0;
+        const int comboLegsCount = comboLegs ? (int)comboLegs->size() : 0;
         ENCODE_FIELD( comboLegsCount);
         if( comboLegsCount > 0) {
             for( int i = 0; i < comboLegsCount; ++i) {
@@ -527,7 +528,7 @@ void EClient::reqHistoricalData(TickerId tickerId, const Contract& contract,
     if (contract.secType == "BAG")
     {
         const Contract::ComboLegList* const comboLegs = contract.comboLegs.get();
-        const int comboLegsCount = comboLegs ? comboLegs->size() : 0;
+        const int comboLegsCount = comboLegs ? (int)comboLegs->size() : 0;
         ENCODE_FIELD(comboLegsCount);
         if (comboLegsCount > 0) {
             for(int i = 0; i < comboLegsCount; ++i) {
@@ -1266,7 +1267,7 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
 
     if (m_serverVersion < MIN_SERVER_VER_SSHORTX) {
         const Contract::ComboLegList* const comboLegs = contract.comboLegs.get();
-        const int comboLegsCount = comboLegs ? comboLegs->size() : 0;
+        const int comboLegsCount = comboLegs ? (int)comboLegs->size() : 0;
         for( int i = 0; i < comboLegsCount; ++i) {
             const ComboLeg* comboLeg = ((*comboLegs)[i]).get();
             assert( comboLeg);
@@ -1337,7 +1338,7 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
 
     if (m_serverVersion < MIN_SERVER_VER_ORDER_COMBO_LEGS_PRICE && contract.secType == "BAG") {
         const Order::OrderComboLegList* const orderComboLegs = order.orderComboLegs.get();
-        const int orderComboLegsCount = orderComboLegs ? orderComboLegs->size() : 0;
+        const int orderComboLegsCount = orderComboLegs ? (int)orderComboLegs->size() : 0;
         for( int i = 0; i < orderComboLegsCount; ++i) {
             const OrderComboLeg* orderComboLeg = ((*orderComboLegs)[i]).get();
             assert( orderComboLeg);
@@ -1531,7 +1532,7 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
     ENCODE_FIELD( order.ocaGroup);
     ENCODE_FIELD( order.account);
     ENCODE_FIELD( order.openClose);
-    ENCODE_FIELD( order.origin);
+    ENCODE_FIELD( (int)order.origin);
     ENCODE_FIELD( order.orderRef);
     ENCODE_FIELD( order.transmit);
     ENCODE_FIELD( order.parentId); // srv v4 and above
@@ -1555,7 +1556,7 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
     if( contract.secType == "BAG")
     {
         const Contract::ComboLegList* const comboLegs = contract.comboLegs.get();
-        const int comboLegsCount = comboLegs ? comboLegs->size() : 0;
+        const int comboLegsCount = comboLegs ? (int)comboLegs->size() : 0;
         ENCODE_FIELD( comboLegsCount);
         if( comboLegsCount > 0) {
             for( int i = 0; i < comboLegsCount; ++i) {
@@ -1580,7 +1581,7 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
     if( m_serverVersion >= MIN_SERVER_VER_ORDER_COMBO_LEGS_PRICE && contract.secType == "BAG")
     {
         const Order::OrderComboLegList* const orderComboLegs = order.orderComboLegs.get();
-        const int orderComboLegsCount = orderComboLegs ? orderComboLegs->size() : 0;
+        const int orderComboLegsCount = orderComboLegs ? (int)orderComboLegs->size() : 0;
         ENCODE_FIELD( orderComboLegsCount);
         if( orderComboLegsCount > 0) {
             for( int i = 0; i < orderComboLegsCount; ++i) {
@@ -1593,7 +1594,7 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
 
     if( m_serverVersion >= MIN_SERVER_VER_SMART_COMBO_ROUTING_PARAMS && contract.secType == "BAG") {
         const TagValueList* const smartComboRoutingParams = order.smartComboRoutingParams.get();
-        const int smartComboRoutingParamsCount = smartComboRoutingParams ? smartComboRoutingParams->size() : 0;
+        const int smartComboRoutingParamsCount = smartComboRoutingParams ? (int)smartComboRoutingParams->size() : 0;
         ENCODE_FIELD( smartComboRoutingParamsCount);
         if( smartComboRoutingParamsCount > 0) {
             for( int i = 0; i < smartComboRoutingParamsCount; ++i) {
@@ -1781,7 +1782,7 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
 
         if( !order.algoStrategy.empty()) {
             const TagValueList* const algoParams = order.algoParams.get();
-            const int algoParamsCount = algoParams ? algoParams->size() : 0;
+            const int algoParamsCount = algoParams ? (int)algoParams->size() : 0;
             ENCODE_FIELD( algoParamsCount);
             if( algoParamsCount > 0) {
                 for( int i = 0; i < algoParamsCount; ++i) {
@@ -1827,7 +1828,7 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
 
         if (order.conditions.size() > 0) {
             for (std::shared_ptr<OrderCondition> item : order.conditions) {
-                ENCODE_FIELD(item->type());
+                ENCODE_FIELD((int)item->type());
                 item->writeExternal(msg);
             }
 
@@ -1880,7 +1881,7 @@ void EClient::placeOrder( OrderId id, const Contract& contract, const Order& ord
     }
 
     if (m_serverVersion >= MIN_SERVER_VER_PRICE_MGMT_ALGO) {
-        ENCODE_FIELD_MAX(order.usePriceMgmtAlgo);
+        ENCODE_FIELD_MAX((int)order.usePriceMgmtAlgo);
     }
 
     closeAndSend( msg.str());
@@ -3351,7 +3352,7 @@ void EClient::setPort( int port)
 // callbacks from socket
 int EClient::sendConnectRequest()
 {
-    m_connState = CS_CONNECTING;
+    m_connState = ConnState::CS_CONNECTING;
 
     int rval;
 
@@ -3378,7 +3379,7 @@ int EClient::sendConnectRequest()
         rval = bufferedSend( msg.str());
     }
 
-    m_connState = rval > 0 ? CS_CONNECTED : CS_DISCONNECTED;
+    m_connState = rval > 0 ? ConnState::CS_CONNECTED : ConnState::CS_DISCONNECTED;
 
     return rval;
 }

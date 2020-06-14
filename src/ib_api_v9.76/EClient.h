@@ -233,7 +233,7 @@ protected:
 
 public:
 
-	enum ConnState {
+	enum class ConnState {
 		CS_DISCONNECTED,
 		CS_CONNECTING,
 		CS_CONNECTED,

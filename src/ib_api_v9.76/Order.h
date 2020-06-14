@@ -15,18 +15,18 @@
 #define UNSET_INTEGER INT_MAX
 #define UNSET_LONG LLONG_MAX
 
-enum Origin { CUSTOMER,
-              FIRM,
-              UNKNOWN };
+enum class Origin { CUSTOMER = 0,
+					FIRM = 1,
+					UNKNOWN = 2};
 
 enum AuctionStrategy { AUCTION_UNSET = 0,
                        AUCTION_MATCH = 1,
                        AUCTION_IMPROVEMENT = 2,
                        AUCTION_TRANSPARENT = 3 };
 
-enum UsePriceMmgtAlgo { DONT_USE = 0,
-                        USE,
-                        DEFAULT = UNSET_INTEGER };
+enum class UsePriceMmgtAlgo {	DONT_USE = 0,
+								USE = 1,
+								DEFAULT = UNSET_INTEGER };
 
 struct OrderComboLeg
 {
@@ -81,7 +81,7 @@ struct Order
 
 		// institutional (ie non-cleared) only
 		openClose     = "O";
-		origin        = CUSTOMER;
+		origin        = Origin::CUSTOMER;
 		shortSaleSlot = 0;
 		exemptCode    = -1;
 

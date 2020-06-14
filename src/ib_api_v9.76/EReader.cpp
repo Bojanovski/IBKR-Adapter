@@ -169,7 +169,7 @@ void EReader::onSend() {
 }
 
 void EReader::onReceive() {
-	int nOffset = m_buf.size();
+	int nOffset = (int)m_buf.size();
 
 	m_buf.resize(m_nMaxBufSize);
 	
@@ -178,7 +178,7 @@ void EReader::onReceive() {
 	if (nRes <= 0)
 		return;
 
- 	m_buf.resize(nRes + nOffset);	
+ 	m_buf.resize((size_t)nRes + nOffset);	
 }
 
 bool EReader::bufferedRead(char *buf, unsigned int size) {
@@ -215,7 +215,7 @@ EMessage * EReader::readSingleMsg() {
 
 		std::vector<char> buf = std::vector<char>(msgSize);
 
-		if (!bufferedRead(buf.data(), buf.size()))
+		if (!bufferedRead(buf.data(), (unsigned int)buf.size()))
 			return 0;
 
 		return new EMessage(buf);

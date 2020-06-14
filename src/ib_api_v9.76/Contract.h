@@ -123,6 +123,8 @@ struct ContractDetails
 		, coupon(0)
 		, convertible(false)
 		, nextOptionPartial(false)
+		, mdSizeMultiplier(0)
+		, aggGroup(0)
 	{
 	}
 

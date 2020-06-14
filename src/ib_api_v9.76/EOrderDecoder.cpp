@@ -22,6 +22,7 @@ EOrderDecoder::EOrderDecoder(Contract *contract, Order *order, OrderState *order
 
 char* EOrderDecoder::decodeOrderId(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->orderId);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeContract(const char*& ptr, const char* endPtr) {
@@ -40,11 +41,13 @@ char* EOrderDecoder::decodeContract(const char*& ptr, const char* endPtr) {
 	if (m_version >= 32) {
 		DECODE_FIELD( m_contract->tradingClass);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeAction(const char*& ptr, const char* endPtr) {
 	// read order fields
 	DECODE_FIELD( m_order->action);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeTotalQuantity(const char*& ptr, const char* endPtr) {
@@ -55,10 +58,12 @@ char* EOrderDecoder::decodeTotalQuantity(const char*& ptr, const char* endPtr) {
 		DECODE_FIELD(lTotalQuantity);
 		m_order->totalQuantity = lTotalQuantity;
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeOrderType(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->orderType);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeLmtPrice(const char*& ptr, const char* endPtr) {
@@ -67,6 +72,7 @@ char* EOrderDecoder::decodeLmtPrice(const char*& ptr, const char* endPtr) {
 	} else {
 		DECODE_FIELD_MAX( m_order->lmtPrice);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeAuxPrice(const char*& ptr, const char* endPtr) {
@@ -75,61 +81,75 @@ char* EOrderDecoder::decodeAuxPrice(const char*& ptr, const char* endPtr) {
 	} else {
 		DECODE_FIELD_MAX( m_order->auxPrice);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeTIF(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->tif);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeOcaGroup(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->ocaGroup);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeAccount(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->account);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeOpenClose(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->openClose);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeOrigin(const char*& ptr, const char* endPtr) {
 	int orderOriginInt;
 	DECODE_FIELD( orderOriginInt);
 	m_order->origin = (Origin)orderOriginInt;
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeOrderRef(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->orderRef);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeClientId(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->clientId);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodePermId(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->permId);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeOutsideRth(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->outsideRth);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeHidden(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->hidden);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeDiscretionaryAmount(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->discretionaryAmt);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeGoodAfterTime(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->goodAfterTime);
+	return nullptr;
 }
 
 char* EOrderDecoder::skipSharesAllocation(const char*& ptr, const char* endPtr) {
 	std::string sharesAllocation;
 	DECODE_FIELD( sharesAllocation);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeFAParams(const char*& ptr, const char* endPtr) {
@@ -137,28 +157,34 @@ char* EOrderDecoder::decodeFAParams(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->faMethod);
 	DECODE_FIELD( m_order->faPercentage);
 	DECODE_FIELD( m_order->faProfile);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeModelCode(const char*& ptr, const char* endPtr) {
 	if( m_serverVersion >= MIN_SERVER_VER_MODELS_SUPPORT ) {
 		DECODE_FIELD( m_order->modelCode);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeGoodTillDate(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->goodTillDate);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeRule80A(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->rule80A);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodePercentOffset(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD_MAX( m_order->percentOffset);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeSettlingFirm(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->settlingFirm);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeShortSaleParams(const char*& ptr, const char* endPtr) {
@@ -171,65 +197,80 @@ char* EOrderDecoder::decodeShortSaleParams(const char*& ptr, const char* endPtr)
 	else if( m_version >= 23){
 		DECODE_FIELD( m_order->exemptCode);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeAuctionStrategy(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->auctionStrategy);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeBoxOrderParams(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD_MAX( m_order->startingPrice);
 	DECODE_FIELD_MAX( m_order->stockRefPrice);
 	DECODE_FIELD_MAX( m_order->delta);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodePegToStkOrVolOrderParams(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD_MAX( m_order->stockRangeLower);
 	DECODE_FIELD_MAX( m_order->stockRangeUpper);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeDisplaySize(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->displaySize);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeBlockOrder(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->blockOrder);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeSweepToFill(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->sweepToFill);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeAllOrNone(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->allOrNone);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeMinQty(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD_MAX( m_order->minQty);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeOcaType(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->ocaType);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeETradeOnly(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->eTradeOnly);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeFirmQuoteOnly(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->firmQuoteOnly);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeNbboPriceCap(const char*& ptr, const char* endPtr) {
-	DECODE_FIELD_MAX( m_order->nbboPriceCap);
+	DECODE_FIELD_MAX(m_order->nbboPriceCap);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeParentId(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->parentId);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeTriggerMethod(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->triggerMethod);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeVolOrderParams(const char*& ptr, const char* endPtr, bool decodeOpenOrderAttribs) {
@@ -258,6 +299,7 @@ char* EOrderDecoder::decodeVolOrderParams(const char*& ptr, const char* endPtr, 
 
 	DECODE_FIELD( m_order->continuousUpdate);
 	DECODE_FIELD( m_order->referencePriceType);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeTrailParams(const char*& ptr, const char* endPtr) {
@@ -266,11 +308,13 @@ char* EOrderDecoder::decodeTrailParams(const char*& ptr, const char* endPtr) {
 	if (m_version >= 30) {
 		DECODE_FIELD_MAX( m_order->trailingPercent);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeBasisPoints(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD_MAX( m_order->basisPoints);
 	DECODE_FIELD_MAX( m_order->basisPointsType);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeComboLegs(const char*& ptr, const char* endPtr) {
@@ -313,6 +357,7 @@ char* EOrderDecoder::decodeComboLegs(const char*& ptr, const char* endPtr) {
 			m_order->orderComboLegs = orderComboLegs;
 		}
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeSmartComboRoutingParams(const char*& ptr, const char* endPtr) {
@@ -331,6 +376,7 @@ char* EOrderDecoder::decodeSmartComboRoutingParams(const char*& ptr, const char*
 			m_order->smartComboRoutingParams = smartComboRoutingParams;
 		}
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeScaleOrderParams(const char*& ptr, const char* endPtr) {
@@ -354,6 +400,7 @@ char* EOrderDecoder::decodeScaleOrderParams(const char*& ptr, const char* endPtr
 		DECODE_FIELD_MAX( m_order->scaleInitFillQty);
 		DECODE_FIELD( m_order->scaleRandomPercent);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeHedgeParams(const char*& ptr, const char* endPtr) {
@@ -363,23 +410,27 @@ char* EOrderDecoder::decodeHedgeParams(const char*& ptr, const char* endPtr) {
 			DECODE_FIELD( m_order->hedgeParam);
 		}
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeOptOutSmartRouting(const char*& ptr, const char* endPtr) {
 	if( m_version >= 25) {
 		DECODE_FIELD( m_order->optOutSmartRouting);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeClearingParams(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->clearingAccount);
 	DECODE_FIELD( m_order->clearingIntent);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeNotHeld(const char*& ptr, const char* endPtr) {
 	if( m_version >= 22) {
 		DECODE_FIELD( m_order->notHeld);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeDeltaNeutral(const char*& ptr, const char* endPtr) {
@@ -394,6 +445,7 @@ char* EOrderDecoder::decodeDeltaNeutral(const char*& ptr, const char* endPtr) {
 			m_contract->deltaNeutralContract = &deltaNeutralContract;
 		}
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeAlgoParams(const char*& ptr, const char* endPtr) {
@@ -415,12 +467,14 @@ char* EOrderDecoder::decodeAlgoParams(const char*& ptr, const char* endPtr) {
 			}
 		}
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeSolicited(const char*& ptr, const char* endPtr) {
 	if (m_version >= 33) {
 		DECODE_FIELD( m_order->solicited);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeWhatIfInfoAndCommission(const char*& ptr, const char* endPtr) {
@@ -444,10 +498,12 @@ char* EOrderDecoder::decodeWhatIfInfoAndCommission(const char*& ptr, const char*
 	DECODE_FIELD_MAX( m_orderState->maxCommission);
 	DECODE_FIELD( m_orderState->commissionCurrency);
 	DECODE_FIELD( m_orderState->warningText);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeOrderStatus(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_orderState->status);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeVolRandomizeFlags(const char*& ptr, const char* endPtr) {
@@ -455,6 +511,7 @@ char* EOrderDecoder::decodeVolRandomizeFlags(const char*& ptr, const char* endPt
 		DECODE_FIELD( m_order->randomizeSize);
 		DECODE_FIELD( m_order->randomizePrice);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodePegBenchParams(const char*& ptr, const char* endPtr) {
@@ -467,6 +524,7 @@ char* EOrderDecoder::decodePegBenchParams(const char*& ptr, const char* endPtr) 
 			DECODE_FIELD( m_order->referenceExchangeId);
 		}
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeConditions(const char*& ptr, const char* endPtr) {
@@ -494,6 +552,7 @@ char* EOrderDecoder::decodeConditions(const char*& ptr, const char* endPtr) {
 			DECODE_FIELD( m_order->conditionsCancelOrder);
 		}
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeAdjustedOrderParams(const char*& ptr, const char* endPtr) {
@@ -506,11 +565,13 @@ char* EOrderDecoder::decodeAdjustedOrderParams(const char*& ptr, const char* end
 		DECODE_FIELD( m_order->adjustedTrailingAmount);
 		DECODE_FIELD( m_order->adjustableTrailingUnit);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeStopPriceAndLmtPriceOffset(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->trailStopPrice);
 	DECODE_FIELD( m_order->lmtPriceOffset);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeSoftDollarTier(const char*& ptr, const char* endPtr) {
@@ -523,74 +584,90 @@ char* EOrderDecoder::decodeSoftDollarTier(const char*& ptr, const char* endPtr) 
 
 		m_order->softDollarTier = SoftDollarTier(name, value, displayName);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeCashQty(const char*& ptr, const char* endPtr) {
 	if (m_serverVersion >= MIN_SERVER_VER_CASH_QTY) {
 		DECODE_FIELD_MAX( m_order->cashQty);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeDontUseAutoPriceForHedge(const char*& ptr, const char* endPtr) {
 	if (m_serverVersion >= MIN_SERVER_VER_AUTO_PRICE_FOR_HEDGE) {
 		DECODE_FIELD( m_order->dontUseAutoPriceForHedge);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeIsOmsContainer(const char*& ptr, const char* endPtr) {
 	if (m_serverVersion >= MIN_SERVER_VER_ORDER_CONTAINER) {
 		DECODE_FIELD( m_order->isOmsContainer);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeDiscretionaryUpToLimitPrice(const char*& ptr, const char* endPtr) {
 	if (m_serverVersion >= MIN_SERVER_VER_D_PEG_ORDERS) {
 		DECODE_FIELD( m_order->discretionaryUpToLimitPrice);
 	}
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeAutoCancelDate(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->autoCancelDate);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeFilledQuantity(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->filledQuantity);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeRefFuturesConId(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->refFuturesConId);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeAutoCancelParent(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->autoCancelParent);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeShareholder(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->shareholder);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeImbalanceOnly(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->imbalanceOnly);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeRouteMarketableToBbo(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->routeMarketableToBbo);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeParentPermId(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_order->parentPermId);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeCompletedTime(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_orderState->completedTime);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeCompletedStatus(const char*& ptr, const char* endPtr) {
 	DECODE_FIELD( m_orderState->completedStatus);
+	return nullptr;
 }
 
 char* EOrderDecoder::decodeUsePriceMgmtAlgo(const char*& ptr, const char* endPtr) {
 	if (m_serverVersion >= MIN_SERVER_VER_PRICE_MGMT_ALGO) {
 		DECODE_FIELD((int&)m_order->usePriceMgmtAlgo);
 	}
+	return nullptr;
 }

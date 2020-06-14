@@ -44,27 +44,27 @@ OrderCondition *OrderCondition::create(OrderConditionType type) {
 	OrderCondition *rval = 0;
 
 	switch (type) {
-	case Execution:
+	case OrderConditionType::Execution:
 		rval = new ExecutionCondition();
 		break;
 
-	case Margin:
+	case OrderConditionType::Margin:
 		rval = new MarginCondition();
 		break;
 
-	case PercentChange:
+	case OrderConditionType::PercentChange:
 		rval = new PercentChangeCondition();
 		break;
 
-	case Price:
+	case OrderConditionType::Price:
 		rval = new PriceCondition();
 		break;
 
-	case Time:
+	case OrderConditionType::Time:
 		rval = new TimeCondition();
 		break;
 
-	case Volume:
+	case OrderConditionType::Volume:
 		rval = new VolumeCondition();
 		break;
 	}

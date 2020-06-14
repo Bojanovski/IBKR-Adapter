@@ -1,6 +1,9 @@
 ﻿/* Copyright (C) 2019 Interactive Brokers LLC. All rights reserved. This code is subject to the terms
  * and conditions of the IB API Non-Commercial License or the IB API Commercial License, as applicable. */
 
+#define _CRT_SECURE_NO_DEPRECATE
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+
 #include "StdAfx.h"
 
 
@@ -79,7 +82,7 @@ bool EClientSocket::eConnect( const char *host, int port, int clientId, bool ext
 	setPort( port);
 
 	// try to connect to specified host and port
-	ConnState resState = CS_DISCONNECTED;
+	ConnState resState = ConnState::CS_DISCONNECTED;
 	
     return eConnectImpl( clientId, extraAuth, &resState);
 }
@@ -100,7 +103,7 @@ bool EClientSocket::eConnectImpl(int clientId, bool extraAuth, ConnState* stateO
 	}
 
 	// create socket
-	m_fd = socket(AF_INET, SOCK_STREAM, 0);
+	m_fd = (int)socket(AF_INET, SOCK_STREAM, 0);
 
 	// cannot create socket
 	if( m_fd < 0) {
@@ -136,8 +139,8 @@ bool EClientSocket::eConnectImpl(int clientId, bool extraAuth, ConnState* stateO
 		return false;
 
 	if( !isConnected()) {
-		if( connState() != CS_DISCONNECTED) {
-			assert( connState() == CS_REDIRECT);
+		if( connState() != ConnState::CS_DISCONNECTED) {
+			assert( connState() == ConnState::CS_REDIRECT);
 			if( stateOutPt) {
 				*stateOutPt = connState();
 			}
@@ -154,7 +157,7 @@ bool EClientSocket::eConnectImpl(int clientId, bool extraAuth, ConnState* stateO
 		return false;
 	}
 
-	assert( connState() == CS_CONNECTED);
+	assert( connState() == ConnState::CS_CONNECTED);
 	if( stateOutPt) {
 		*stateOutPt = connState();
 	}
@@ -180,8 +183,8 @@ void EClientSocket::encodeMsgLen(std::string& msg, unsigned offset) const
 	assert( m_useV100Plus);
 
 	assert( sizeof(unsigned) == HEADER_LEN);
-	assert( msg.size() > offset + HEADER_LEN);
-	unsigned len = msg.size() - HEADER_LEN - offset;
+	assert( (int)msg.size() > offset + HEADER_LEN);
+	unsigned len = (unsigned int)msg.size() - HEADER_LEN - offset;
 	if( len > MAX_MSG_LEN) {
 		m_pEWrapper->error( NO_VALID_ID, BAD_LENGTH.code(), BAD_LENGTH.msg());
 		return;
@@ -248,7 +251,7 @@ int EClientSocket::receive(char* buf, size_t sz)
 	if( sz <= 0)
 		return 0;
 
-	int nResult = ::recv( m_fd, buf, sz, 0);
+	int nResult = ::recv( m_fd, buf, (int)sz, 0);
 
 	if( nResult == -1 && !handleSocketError()) {
 		return -1;
@@ -324,8 +327,9 @@ bool EClientSocket::handleSocketError()
 		getWrapper()->error( NO_VALID_ID, CONNECT_FAIL.code(), CONNECT_FAIL.msg());
 	}
 	else {
+		std::string errorMsg = strerror(errno);
 		getWrapper()->error( NO_VALID_ID, SOCKET_EXCEPTION.code(),
-			SOCKET_EXCEPTION.msg() + strerror(errno));
+			SOCKET_EXCEPTION.msg() + errorMsg);
 	}
 	// reset errno
 	errno = 0;

@@ -10,13 +10,13 @@
 struct Bar
 {
 	std::string time;
-	double high;
-	double low;
-	double open;
-	double close;
-	double wap;
-	long long volume;
-	int count;
+	double high{ 0.0 };
+	double low{ 0.0 };
+	double open{ 0.0 };
+	double close{ 0.0 };
+	double wap{ 0.0 };
+	long long volume{ 0 };
+	int count{ 0 };
 };
 
 #endif

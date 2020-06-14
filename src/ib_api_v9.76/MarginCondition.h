@@ -10,7 +10,7 @@
 class TWSAPIDLLEXP MarginCondition : public OperatorCondition {
 	friend OrderCondition;
 
-	int m_percent;
+	int m_percent{ -1 };
 
 public:
 	static const OrderConditionType conditionType = OrderConditionType::Margin;
