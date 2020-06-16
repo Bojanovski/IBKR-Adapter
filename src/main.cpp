@@ -1,11 +1,12 @@
 ﻿
-#include <IBKRAdapter.h>
+#ifdef BUILD_TYPE_EXECUTABLE
+
+#include <IGenericConnectionAdapter.h>
 
 #include <string>
 #include <iostream>
 
 using namespace std;
-using namespace ibkr;
 
 void logFunc(void* obj, LogType type, const char *str)
 {
@@ -29,8 +30,8 @@ void logFunc(void* obj, LogType type, const char *str)
 
 int main()
 {
-	IBKRAdapter* impl;
-	ibkr::CreateAdapterImplementation(&impl);
+	IGenericConnectionAdapter* impl;
+	CreateAdapterImplementation(&impl);
 	impl->SetLogFunction(&logFunc, nullptr);
 	bool res = impl->Connect();
 
@@ -39,7 +40,7 @@ int main()
 		cout << "Connection established" << endl;
 		impl->StartListeningForMessages();
 
-		ibkr::ContractInfo contractInfo;
+		ContractInfo contractInfo;
 		int inChoice;
 		string inStr = "";
 		while (true)
@@ -57,10 +58,10 @@ int main()
 			{
 			case 1:
 			{
-				ibkr::StockContractQuery query = { inStr, "", "USD" };
-				ibkr::ContractQueryResult result;
+				StockContractQuery query = { inStr, "", "USD" };
+				ContractQueryResult result;
 				impl->GetStockContracts(query, &result);
-				if (result.Status != ibkr::ResultStatus::Success) continue;
+				if (result.Status != ResultStatus::Success) continue;
 				contractInfo = result.ContractInfoArray[0];
 				cout << "Selected contract: " << contractInfo.ToShortString() << endl;
 			}
@@ -68,10 +69,10 @@ int main()
 
 			case 2:
 			{
-				ibkr::LimitOrderInfo placeInfo = { ActionType::Buy, 900.0, (double)atoi(inStr.c_str()), &contractInfo };
+				LimitOrderInfo placeInfo = { ActionType::Buy, 900.0, (double)atoi(inStr.c_str()), &contractInfo };
 				PlaceOrderResult result;
 				impl->PlaceLimitOrder(placeInfo, &result);
-				if (result.Status != ibkr::ResultStatus::Success) continue;
+				if (result.Status != ResultStatus::Success) continue;
 				cout << "Order placed: " << placeInfo.ToShortString() << " id: " << result.Id << endl;
 			}
 				break;
@@ -83,6 +84,8 @@ int main()
 		}
 	}
 
-	ibkr::DestroyAdapterImplementation(&impl);
+	DestroyAdapterImplementation(&impl);
 	return 0;
 }
+
+#endif

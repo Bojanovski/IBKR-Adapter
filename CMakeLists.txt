@@ -2,8 +2,25 @@
 # project specific logic here.
 #
 cmake_minimum_required (VERSION 3.8)
-
 project ("IBKR-Adapter")
+set(EXECUTABLE 0)
+set(LIBRARY 1)
+set(THIS_BUILD LIBRARY)
+
+#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
+#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall")
+
+if (WIN32)
+    #do something
+endif (WIN32)
+
+if (UNIX)
+    #do something
+endif (UNIX)
+
+if (MSVC)
+    #do something
+endif (MSVC)
 
 include_directories(inc)
 
@@ -35,7 +52,6 @@ set(SOURCE_FILES
 )
 
 set(HEADER_FILES 
-    inc/IBKRAdapter.h                                /
     src/IBKRClient.h                                 /
 
     src/ib_api_v9.76/CommissionReport.h              /
@@ -90,7 +106,15 @@ set(HEADER_FILES
     src/ib_api_v9.76/platformspecific.h
 )
 
-# Add source to this project's executable.
-add_executable (${PROJECT_NAME} ${SOURCE_FILES})
+# Add source to this project's binaries.
+if (${THIS_BUILD} EQUAL ${EXECUTABLE})
+    add_compile_definitions(BUILD_TYPE_EXECUTABLE)
+    add_executable (${PROJECT_NAME} ${SOURCE_FILES})
+endif (${THIS_BUILD} EQUAL ${EXECUTABLE})
+
+if (${THIS_BUILD} EQUAL ${LIBRARY})
+    add_compile_definitions(BUILD_TYPE_LIBRARY)
+    add_library (${PROJECT_NAME} MODULE ${SOURCE_FILES})
+endif (${THIS_BUILD} EQUAL ${LIBRARY})
 
 # TODO: Add tests and install targets if needed.

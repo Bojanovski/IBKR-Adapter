@@ -6,7 +6,7 @@
 #include "ib_api_v9.76/EReader.h"
 #include "ib_api_v9.76/Order.h"
 
-#include <IBKRAdapter.h>
+#include <IGenericConnectionAdapter.h>
 
 #include <memory>
 #include <atomic>
@@ -15,22 +15,33 @@
 #include <condition_variable>
 #include <atomic>
 
-class IBKRClient : public IBKRAdapter, public EWrapper
+#ifdef WIN32
+#define LIBRARY_EXPORT __declspec(dllexport)
+#else
+#define LIBRARY_EXPORT
+#endif
+
+extern "C" {
+	LIBRARY_EXPORT void CREATE_ADAPTER_FUNC(IGenericConnectionAdapter** implementation);
+	LIBRARY_EXPORT void DESTROY_ADAPTER_FUNC(IGenericConnectionAdapter** implementation);
+}
+
+class IBKRClient : public IGenericConnectionAdapter, public EWrapper
 {
 public:
 	IBKRClient(unsigned long signalWaitTimeout = 2000);
 	virtual ~IBKRClient();
 
 	// IBKRAdapter implementations
-	virtual void SetLogFunction(ibkr::LogFunction* logFunctionPtr, void* logObjectPtr) override;
+	virtual void SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr) override;
 	virtual bool Connect() override;
 	virtual bool IsConnected() override;
 	virtual void Disconnect() override;
-	virtual void GetSupportedFeatures(ibkr::SupportedFeatures* supportedFeatures) override;
+	virtual void GetSupportedFeatures(SupportedFeatures* supportedFeatures) override;
 	virtual void StartListeningForMessages() override;
 	virtual void StopListeningForMessages() override;
-	virtual void GetStockContracts(const ibkr::StockContractQuery& query, ibkr::ContractQueryResult* result) override;
-	virtual void PlaceLimitOrder(const ibkr::LimitOrderInfo& orderInfo, ibkr::PlaceOrderResult* result) override;
+	virtual void GetStockContracts(const StockContractQuery& query, ContractQueryResult* result) override;
+	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) override;
 
 	// EWrapper implementations
 	virtual void tickPrice(TickerId tickerId, TickType field, double price, const TickAttrib& attrib) override;
@@ -146,7 +157,7 @@ private:
 	std::thread mMessgeListeningThread;
 
 	// Logging
-	ibkr::LogFunction *mLogFunctionPtr;
+	LogFunction *mLogFunctionPtr;
 	void* mLogObjectPtr;
 
 	// Order placement
@@ -162,7 +173,7 @@ private:
 	{
 		void Reset();
 		bool mIsDone{ false };
-		std::vector<ibkr::ContractInfo> mReceivedContractInfos;
+		std::vector<ContractInfo> mReceivedContractInfos;
 	};
 	std::map<int, ContractRequestResponse> mRequestIdToContractRequestResponse;
 };

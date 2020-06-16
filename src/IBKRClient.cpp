@@ -1,9 +1,7 @@
 ﻿
 #include "IBKRClient.h"
 
-using namespace ibkr;
-
-void fromContractInfoToContract(Contract& contractOut, const ibkr::ContractInfo& contractInfoIn)
+void fromContractInfoToContract(Contract& contractOut, const ContractInfo& contractInfoIn)
 {
     contractOut.conId = contractInfoIn.Id;
     contractOut.symbol = contractInfoIn.Symbol;
@@ -11,7 +9,7 @@ void fromContractInfoToContract(Contract& contractOut, const ibkr::ContractInfo&
     contractOut.exchange = contractInfoIn.Exchange;
 }
 
-void fromContractDetailsToContractInfo(ibkr::ContractInfo& contractInfoOut, const ContractDetails& contractDetailsIn)
+void fromContractDetailsToContractInfo(ContractInfo& contractInfoOut, const ContractDetails& contractDetailsIn)
 {
     contractInfoOut.Id = contractDetailsIn.contract.conId;
     contractInfoOut.Symbol = contractDetailsIn.contract.symbol;
@@ -44,14 +42,13 @@ IBKRClient::~IBKRClient()
 //
 // IBKRAdapter implementation
 //
-
-void ibkr::CreateAdapterImplementation(IBKRAdapter** implementation)
+void CREATE_ADAPTER_FUNC(IGenericConnectionAdapter** implementation)
 {
     IBKRClient* client = new IBKRClient();
     *implementation = client;
 }
 
-void ibkr::DestroyAdapterImplementation(IBKRAdapter** implementation)
+void DESTROY_ADAPTER_FUNC(IGenericConnectionAdapter** implementation)
 {
     if (*implementation)
     {
@@ -60,7 +57,7 @@ void ibkr::DestroyAdapterImplementation(IBKRAdapter** implementation)
     }
 }
 
-void IBKRClient::SetLogFunction(ibkr::LogFunction* logFunctionPtr, void* logObjectPtr)
+void IBKRClient::SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr)
 {
     mLogFunctionPtr = logFunctionPtr;
     mLogObjectPtr = logObjectPtr;
@@ -114,7 +111,7 @@ void IBKRClient::StopListeningForMessages()
 #include <chrono>
 using namespace std::chrono_literals;
 
-void IBKRClient::GetStockContracts(const ibkr::StockContractQuery& query, ibkr::ContractQueryResult* result)
+void IBKRClient::GetStockContracts(const StockContractQuery& query, ContractQueryResult* result)
 {
     Contract contract;
     contract.symbol = query.Symbol;
@@ -154,16 +151,16 @@ void IBKRClient::GetStockContracts(const ibkr::StockContractQuery& query, ibkr::
     mContractRequestConditionVariable.notify_one();
 }
 
-void IBKRClient::PlaceLimitOrder(const ibkr::LimitOrderInfo& orderInfo, ibkr::PlaceOrderResult* result)
+void IBKRClient::PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result)
 {
     // Set the order info
     Order order;
     switch (orderInfo.Action)
     {
-    case ibkr::ActionType::Buy:
+    case ActionType::Buy:
         order.action = "BUY";
         break;
-    case ibkr::ActionType::Sell:
+    case ActionType::Sell:
         order.action = "SELL";
         break;
     }
