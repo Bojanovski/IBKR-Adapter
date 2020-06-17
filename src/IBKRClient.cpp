@@ -1,6 +1,10 @@
 ﻿
 #include "IBKRClient.h"
 
+#include <chrono>
+
+using namespace std::chrono_literals;
+
 void fromContractInfoToContract(Contract& contractOut, const ContractInfo& contractInfoIn)
 {
     contractOut.conId = contractInfoIn.Id;
@@ -40,8 +44,9 @@ IBKRClient::~IBKRClient()
 }
 
 //
-// IBKRAdapter implementation
+// Exported functions implementation
 //
+
 void CREATE_ADAPTER_FUNC(IGenericConnectionAdapter** implementation)
 {
     IBKRClient* client = new IBKRClient();
@@ -56,6 +61,17 @@ void DESTROY_ADAPTER_FUNC(IGenericConnectionAdapter** implementation)
         *implementation = nullptr;
     }
 }
+
+void GET_INFO_FUNC(ConnectionAdapterLibraryInfo* info)
+{
+    strcpy_s(info->Name,        sizeof(info->Name),         "IBKR");
+    strcpy_s(info->Version,     sizeof(info->Version),      "v1.0");
+    strcpy_s(info->Description, sizeof(info->Description),  "A connection adapter for the IBKR (Interactive Brokers) API (application programming interface).");
+}
+
+//
+// IGenericConnectionAdapter implementation
+//
 
 void IBKRClient::SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr)
 {
@@ -106,10 +122,6 @@ void IBKRClient::StopListeningForMessages()
     mListenForMessages = false;
     if (mMessgeListeningThread.joinable()) mMessgeListeningThread.join();
 }
-
-
-#include <chrono>
-using namespace std::chrono_literals;
 
 void IBKRClient::GetStockContracts(const StockContractQuery& query, ContractQueryResult* result)
 {

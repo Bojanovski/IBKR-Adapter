@@ -8,6 +8,16 @@
 class IGenericConnectionAdapter;
 
 //
+// Library info
+//
+struct ConnectionAdapterLibraryInfo
+{
+	char Name[64];
+	char Version[64];
+	char Description[512];
+};
+
+//
 // Message logging
 //
 enum class LogType { Info, Warning, Error };
@@ -90,14 +100,17 @@ public:
 //
 // Factory function pointers declarations
 //
-#define CREATE_ADAPTER_FUNC _create_adapter_implementation
-#define DESTROY_ADAPTER_FUNC _destroy_adapter_implementation
 #define ADD_QUOTES(x) #x
 #define TO_STRING(x) ADD_QUOTES(x)
+#define CREATE_ADAPTER_FUNC _create_adapter_function_implementation
+#define DESTROY_ADAPTER_FUNC _destroy_adapter_function_implementation
+#define GET_INFO_FUNC _get_info_function_implementation
 #define CREATE_ADAPTER_IMPLEMENTATION_NAME TO_STRING(CREATE_ADAPTER_FUNC)
 #define DESTROY_ADAPTER_IMPLEMENTATION_NAME TO_STRING(DESTROY_ADAPTER_FUNC)
+#define GET_INFO_IMPLEMENTATION_NAME TO_STRING(GET_INFO_FUNC)
 typedef void (*CreateAdapterImplementationPtr)(IGenericConnectionAdapter**);
 typedef void (*DestroyAdapterImplementationPtr)(IGenericConnectionAdapter**);
+typedef void (*GetInfoImplementationPtr)(ConnectionAdapterLibraryInfo*);
 
 
 #endif // IGENERICCONNECTIONADAPTER_H

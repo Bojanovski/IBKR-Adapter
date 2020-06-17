@@ -21,9 +21,10 @@
 #define LIBRARY_EXPORT
 #endif
 
-extern "C" {
-	LIBRARY_EXPORT void CREATE_ADAPTER_FUNC(IGenericConnectionAdapter** implementation);
-	LIBRARY_EXPORT void DESTROY_ADAPTER_FUNC(IGenericConnectionAdapter** implementation);
+extern "C" { // Needs to expose these functions without c++ name mangling
+	LIBRARY_EXPORT void CREATE_ADAPTER_FUNC(IGenericConnectionAdapter**);
+	LIBRARY_EXPORT void DESTROY_ADAPTER_FUNC(IGenericConnectionAdapter**);
+	LIBRARY_EXPORT void GET_INFO_FUNC(ConnectionAdapterLibraryInfo*);
 }
 
 class IBKRClient : public IGenericConnectionAdapter, public EWrapper
@@ -32,7 +33,7 @@ public:
 	IBKRClient(unsigned long signalWaitTimeout = 2000);
 	virtual ~IBKRClient();
 
-	// IBKRAdapter implementations
+	// IGenericConnectionAdapter implementations
 	virtual void SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr) override;
 	virtual bool Connect() override;
 	virtual bool IsConnected() override;

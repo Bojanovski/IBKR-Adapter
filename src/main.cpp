@@ -2,6 +2,7 @@
 #ifdef BUILD_TYPE_EXECUTABLE
 
 #include <IGenericConnectionAdapter.h>
+#include "IBKRClient.h"
 
 #include <string>
 #include <iostream>
@@ -30,8 +31,21 @@ void logFunc(void* obj, LogType type, const char *str)
 
 int main()
 {
+	// Function pointers check
+	CreateAdapterImplementationPtr createAdapterPtr = CREATE_ADAPTER_FUNC;
+	DestroyAdapterImplementationPtr destroyAdapterPtr = DESTROY_ADAPTER_FUNC;
+	GetInfoImplementationPtr getInfoPtr = GET_INFO_FUNC;
+
+	// Display the info
+	ConnectionAdapterLibraryInfo adapterInfo;
+	getInfoPtr(&adapterInfo);
+	cout << adapterInfo.Name << endl;
+	cout << adapterInfo.Version << endl;
+	cout << adapterInfo.Description << endl;
+	cout << "----------------------------------" << endl;
+
 	IGenericConnectionAdapter* impl;
-	CreateAdapterImplementation(&impl);
+	createAdapterPtr(&impl);
 	impl->SetLogFunction(&logFunc, nullptr);
 	bool res = impl->Connect();
 
@@ -84,7 +98,7 @@ int main()
 		}
 	}
 
-	DestroyAdapterImplementation(&impl);
+	destroyAdapterPtr(&impl);
 	return 0;
 }
 
