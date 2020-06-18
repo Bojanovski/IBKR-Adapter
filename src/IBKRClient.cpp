@@ -67,6 +67,9 @@ void GET_INFO_FUNC(ConnectionAdapterLibraryInfo* info)
     strcpy_s(info->Name,        sizeof(info->Name),         "IBKR");
     strcpy_s(info->Version,     sizeof(info->Version),      "v1.0");
     strcpy_s(info->Description, sizeof(info->Description),  "A connection adapter for the IBKR (Interactive Brokers) API (application programming interface).");
+
+    info->SupportedFeatures.PlaceLimitOrders = true;
+    info->SupportedFeatures.PlaceMarketOrders = false;
 }
 
 //
@@ -100,12 +103,6 @@ bool IBKRClient::IsConnected()
 void IBKRClient::Disconnect()
 {
     mClientSocketPtr->eDisconnect();
-}
-
-void IBKRClient::GetSupportedFeatures(SupportedFeatures* supportedFeatures)
-{
-    supportedFeatures->PlaceLimitOrders = true;
-    supportedFeatures->PlaceMarketOrders = false;
 }
 
 void IBKRClient::StartListeningForMessages()

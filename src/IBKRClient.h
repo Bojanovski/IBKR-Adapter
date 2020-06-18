@@ -38,7 +38,6 @@ public:
 	virtual bool Connect() override;
 	virtual bool IsConnected() override;
 	virtual void Disconnect() override;
-	virtual void GetSupportedFeatures(SupportedFeatures* supportedFeatures) override;
 	virtual void StartListeningForMessages() override;
 	virtual void StopListeningForMessages() override;
 	virtual void GetStockContracts(const StockContractQuery& query, ContractQueryResult* result) override;

@@ -15,6 +15,12 @@ struct ConnectionAdapterLibraryInfo
 	char Name[64];
 	char Version[64];
 	char Description[512];
+
+	struct
+	{
+		bool PlaceLimitOrders : 1;
+		bool PlaceMarketOrders : 1;
+	} SupportedFeatures;
 };
 
 //
@@ -45,13 +51,8 @@ struct ContractQueryResult
 };
 
 //
-// Utilities and actions
+// Actions
 //
-struct SupportedFeatures
-{
-	bool PlaceLimitOrders : 1;
-	bool PlaceMarketOrders : 1;
-};
 enum class ActionType { Buy = 0, Sell = 1 };
 inline std::string ActionTypeToString(const ActionType& at) {switch (at){case ActionType::Buy:return "BUY"; case ActionType::Sell:return "SELL"; default: return "";}}
 struct LimitOrderInfo
@@ -88,7 +89,6 @@ public:
 	virtual bool IsConnected() = 0;
 	virtual void Disconnect() = 0;
 
-	virtual void GetSupportedFeatures(SupportedFeatures *supportedFeatures) = 0;
 	virtual void StartListeningForMessages() = 0;
 	virtual void StopListeningForMessages() = 0;
 
