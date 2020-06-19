@@ -82,21 +82,34 @@ void IBKRClient::SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr)
     mLogObjectPtr = logObjectPtr;
 }
 
-bool IBKRClient::Connect()
+void IBKRClient::Connect(const ConnectionInfo &connectionInfo, std::function<void()> callback)
 {
-    bool res = mClientSocketPtr->eConnect("127.0.0.1", 7497, 0, mExtraAuth);
-    if (res)
-    {
-        // Fire up the reader
-        mReaderPtr = std::make_unique<EReader>(mClientSocketPtr.get(), &mOSSignal);
-        mReaderPtr->start();
-    }
+    if (mAsyncConnectionThread.joinable()) mAsyncConnectionThread.join();
+    mAsyncConnectionThread = std::thread([this, connectionInfo, callback]() {
 
-    return res;
+        std::unique_lock<std::mutex> lk(mConnectionMutex);
+        bool res = this->mClientSocketPtr->eConnect(connectionInfo.IP.c_str(), connectionInfo.Port, connectionInfo.ClientId, mExtraAuth);
+        if (res)
+        {
+            // Fire up the reader
+            this->mReaderPtr = std::make_unique<EReader>(this->mClientSocketPtr.get(), &mOSSignal);
+            this->mReaderPtr->start();
+
+            // Start listening for messages
+            StartListeningForMessages();
+        }
+
+        // The callback could be intefacing with the class and therfore locking
+        // mutexes such as mConnectionMutex, so we unlock it here to prevent a deadlock.
+        lk.unlock();
+        callback();
+
+        });
 }
 
 bool IBKRClient::IsConnected()
 {
+    std::unique_lock<std::mutex> lk(mConnectionMutex);
     return mClientSocketPtr->isConnected();
 }
 

@@ -47,13 +47,20 @@ int main()
 	IGenericConnectionAdapter* impl;
 	createAdapterPtr(&impl);
 	impl->SetLogFunction(&logFunc, nullptr);
-	bool res = impl->Connect();
+	std::atomic<bool>continue_thread = false;
 
-	if (res)
+	ConnectionInfo connInfo;
+	connInfo.IP = "127.0.0.1";
+	connInfo.Port = 7497;
+	connInfo.ClientId = 0;
+	impl->Connect(connInfo, [&continue_thread, impl]() { continue_thread = true; });
+
+	// Wait for the callback
+	while (!continue_thread);
+
+	if (impl->IsConnected())
 	{
 		cout << "Connection established" << endl;
-		impl->StartListeningForMessages();
-
 		ContractInfo contractInfo;
 		int inChoice;
 		string inStr = "";

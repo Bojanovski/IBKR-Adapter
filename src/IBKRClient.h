@@ -35,11 +35,9 @@ public:
 
 	// IGenericConnectionAdapter implementations
 	virtual void SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr) override;
-	virtual bool Connect() override;
+	virtual void Connect(const ConnectionInfo& connectionInfo, std::function<void()> callback) override;
 	virtual bool IsConnected() override;
 	virtual void Disconnect() override;
-	virtual void StartListeningForMessages() override;
-	virtual void StopListeningForMessages() override;
 	virtual void GetStockContracts(const StockContractQuery& query, ContractQueryResult* result) override;
 	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) override;
 
@@ -146,10 +144,18 @@ private:
 	// A message listening loop that runs in a separate thread
 	void MessageListeningLoop();
 
+	// (Re)starts the message listener
+	void StartListeningForMessages();
+	
+	// Stops the listener
+	void StopListeningForMessages();
+
 private:
 	EReaderOSSignal mOSSignal;
 	unsigned long mSignalWaitTimeout;
 
+	std::mutex mConnectionMutex;
+	std::thread mAsyncConnectionThread;
 	std::unique_ptr<EClientSocket> mClientSocketPtr;
 	bool mExtraAuth;
 	std::unique_ptr<EReader> mReaderPtr;

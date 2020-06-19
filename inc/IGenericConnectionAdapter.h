@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 
 class IGenericConnectionAdapter;
 
@@ -28,6 +29,16 @@ struct ConnectionAdapterLibraryInfo
 //
 enum class LogType { Info, Warning, Error };
 typedef void LogFunction(void*, LogType, const char* msg);
+
+//
+// Connection
+//
+struct ConnectionInfo
+{
+	std::string IP;
+	int Port;
+	int ClientId;
+};
 
 //
 // Contracts
@@ -85,12 +96,9 @@ class IGenericConnectionAdapter
 {
 public:
 	virtual void SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr) = 0;
-	virtual bool Connect() = 0;
+	virtual void Connect(const ConnectionInfo& connectionInfo, std::function<void()> callback) = 0;
 	virtual bool IsConnected() = 0;
 	virtual void Disconnect() = 0;
-
-	virtual void StartListeningForMessages() = 0;
-	virtual void StopListeningForMessages() = 0;
 
 	virtual void GetStockContracts(const StockContractQuery& query, ContractQueryResult* result) = 0;
 
