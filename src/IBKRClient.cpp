@@ -41,8 +41,8 @@ IBKRClient::IBKRClient(unsigned long signalWaitTimeout)
 
 IBKRClient::~IBKRClient()
 {
-    mListenForMessages = false;
-    mMessgeListeningThread.join();
+    Disconnect();
+    StopListeningForMessages();
 }
 
 //
@@ -100,17 +100,19 @@ void IBKRClient::SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr)
 void IBKRClient::Connect(const ConnectInfo& connectInfo)
 {
     // Save the connection data
+    void* callbackObject = connectInfo.CallbackObject;
+    ConnectCallbackFunction* callbackFunctionPtr = connectInfo.CallbackFunctionPtr;
     int clientId = mClientCount++;
     ConnectionAdapterParameter::Value paramIP = connectInfo.ParameterValues[0];
     ConnectionAdapterParameter::Value paramPort = connectInfo.ParameterValues[1];
 
     // Start the thread
     if (mAsyncConnectionThread.joinable()) mAsyncConnectionThread.join();
-    mAsyncConnectionThread = std::thread([this, connectInfo, clientId, paramIP, paramPort]() {
+    mAsyncConnectionThread = std::thread([this, callbackObject, callbackFunctionPtr, clientId, paramIP, paramPort]() {
 
         // Create the result object
         ConnectResult result;
-        result.CallbackObject = connectInfo.CallbackObject;
+        result.CallbackObject = callbackObject;
 
         // Lock the mutex
         std::unique_lock<std::mutex> lk(mConnectionMutex);
@@ -134,7 +136,7 @@ void IBKRClient::Connect(const ConnectInfo& connectInfo)
         // The callback could be intefacing with the class and therfore locking
         // mutexes such as mConnectionMutex, so we unlock it here to prevent a deadlock.
         lk.unlock();
-        connectInfo.CallbackFunctionPtr(result);
+        callbackFunctionPtr(result);
         });
 }
 
@@ -146,6 +148,7 @@ bool IBKRClient::IsConnected()
 
 void IBKRClient::Disconnect()
 {
+    std::unique_lock<std::mutex> lk(mConnectionMutex);
     mClientSocketPtr->eDisconnect();
 }
 
