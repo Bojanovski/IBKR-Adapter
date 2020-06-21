@@ -22,7 +22,27 @@ struct ConnectionAdapterLibraryInfo
 		bool PlaceLimitOrders : 1;
 		bool PlaceMarketOrders : 1;
 	} SupportedFeatures;
+
+	struct
+	{
+		int Count;
+	} Parameters;
 };
+
+struct ConnectionAdapterParameter
+{
+	enum class Type { String, Integer };
+	union Value
+	{
+		char ValueStr[64];
+		int ValueInt;
+	};
+
+	char Name[64];
+	Type Type;
+	Value Default;
+};
+typedef ConnectionAdapterParameter ConnectionAdapterParameterInfo;
 
 //
 // Message logging
@@ -33,11 +53,19 @@ typedef void LogFunction(void*, LogType, const char* msg);
 //
 // Connection
 //
-struct ConnectionInfo
+enum class ResultStatus { Success, Failure, WaitTimeout };
+struct ConnectResult;
+typedef void ConnectCallbackFunction(ConnectResult);
+struct ConnectInfo
 {
-	std::string IP;
-	int Port;
-	int ClientId;
+	ConnectionAdapterParameter::Value* ParameterValues;
+	void* CallbackObject;
+	ConnectCallbackFunction *CallbackFunctionPtr;
+};
+struct ConnectResult
+{
+	void* CallbackObject;
+	ResultStatus Status;
 };
 
 //
@@ -53,7 +81,6 @@ struct ContractInfo
 
 	std::string ToShortString() const { return (Exchange + ":" + Symbol + "(" + Currency + ")"); }
 };
-enum class ResultStatus { Success, Failure, WaitTimeout };
 struct ContractQueryResult
 {
 	std::vector<ContractInfo> ContractInfoArray;
@@ -96,7 +123,7 @@ class IGenericConnectionAdapter
 {
 public:
 	virtual void SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr) = 0;
-	virtual void Connect(const ConnectionInfo& connectionInfo, std::function<void()> callback) = 0;
+	virtual void Connect(const ConnectInfo& connectInfo) = 0;
 	virtual bool IsConnected() = 0;
 	virtual void Disconnect() = 0;
 
@@ -113,12 +140,14 @@ public:
 #define CREATE_ADAPTER_FUNC _create_adapter_function_implementation
 #define DESTROY_ADAPTER_FUNC _destroy_adapter_function_implementation
 #define GET_INFO_FUNC _get_info_function_implementation
+#define GET_PARAM_INFO_FUNC _get_param_info_function_implementation
 #define CREATE_ADAPTER_IMPLEMENTATION_NAME TO_STRING(CREATE_ADAPTER_FUNC)
 #define DESTROY_ADAPTER_IMPLEMENTATION_NAME TO_STRING(DESTROY_ADAPTER_FUNC)
 #define GET_INFO_IMPLEMENTATION_NAME TO_STRING(GET_INFO_FUNC)
+#define GET_PARAM_INFO_IMPLEMENTATION_NAME TO_STRING(GET_PARAM_INFO_FUNC)
 typedef void (*CreateAdapterImplementationPtr)(IGenericConnectionAdapter**);
 typedef void (*DestroyAdapterImplementationPtr)(IGenericConnectionAdapter**);
 typedef void (*GetInfoImplementationPtr)(ConnectionAdapterLibraryInfo*);
-
+typedef void (*GetParameterInfoImplementationPtr)(ConnectionAdapterParameterInfo*);
 
 #endif // IGENERICCONNECTIONADAPTER_H

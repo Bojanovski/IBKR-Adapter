@@ -29,12 +29,19 @@ void logFunc(void* obj, LogType type, const char *str)
 	cout << typeStr << ": " << str << endl;
 }
 
+void connectCallback(ConnectResult result)
+{
+	auto continue_thread = static_cast<std::atomic<bool> *>(result.CallbackObject);
+	*continue_thread = true;
+}
+
 int main()
 {
 	// Function pointers check
 	CreateAdapterImplementationPtr createAdapterPtr = CREATE_ADAPTER_FUNC;
 	DestroyAdapterImplementationPtr destroyAdapterPtr = DESTROY_ADAPTER_FUNC;
 	GetInfoImplementationPtr getInfoPtr = GET_INFO_FUNC;
+	GetParameterInfoImplementationPtr getParamInfoPtr = GET_PARAM_INFO_FUNC;
 
 	// Display the info
 	ConnectionAdapterLibraryInfo adapterInfo;
@@ -44,16 +51,23 @@ int main()
 	cout << adapterInfo.Description << endl;
 	cout << "----------------------------------" << endl;
 
+	// Get the parameter info
+	std::vector<ConnectionAdapterParameterInfo> parameters(adapterInfo.Parameters.Count);
+	getParamInfoPtr(parameters.data());
+
 	IGenericConnectionAdapter* impl;
 	createAdapterPtr(&impl);
 	impl->SetLogFunction(&logFunc, nullptr);
 	std::atomic<bool>continue_thread = false;
 
-	ConnectionInfo connInfo;
-	connInfo.IP = "127.0.0.1";
-	connInfo.Port = 7497;
-	connInfo.ClientId = 0;
-	impl->Connect(connInfo, [&continue_thread, impl]() { continue_thread = true; });
+	std::vector<ConnectionAdapterParameter::Value> parameterValues(adapterInfo.Parameters.Count);
+	strcpy_s(parameterValues[0].ValueStr, sizeof(parameterValues[0].ValueStr), "127.0.0.1");
+	parameterValues[1].ValueInt = 7497;
+	ConnectInfo connInfo;
+	connInfo.ParameterValues = parameterValues.data();
+	connInfo.CallbackObject = &continue_thread;
+	connInfo.CallbackFunctionPtr = connectCallback;
+	impl->Connect(connInfo);
 
 	// Wait for the callback
 	while (!continue_thread);

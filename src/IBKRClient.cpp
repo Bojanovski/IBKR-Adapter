@@ -21,6 +21,8 @@ void fromContractDetailsToContractInfo(ContractInfo& contractInfoOut, const Cont
     contractInfoOut.Exchange = contractDetailsIn.contract.exchange;
 }
 
+int IBKRClient::mClientCount = 0;
+
 IBKRClient::IBKRClient(unsigned long signalWaitTimeout)
     : EWrapper()
     , mOSSignal(signalWaitTimeout)
@@ -70,6 +72,19 @@ void GET_INFO_FUNC(ConnectionAdapterLibraryInfo* info)
 
     info->SupportedFeatures.PlaceLimitOrders = true;
     info->SupportedFeatures.PlaceMarketOrders = false;
+
+    info->Parameters.Count = 2; // we need IP and port
+}
+
+void GET_PARAM_INFO_FUNC(ConnectionAdapterParameterInfo* info)
+{
+    strcpy_s(info[0].Name,              sizeof(info[0].Name), "IP");
+    strcpy_s(info[0].Default.ValueStr,  sizeof(info[0].Name), "127.0.0.1");
+    info[0].Type = ConnectionAdapterParameter::Type::String;
+
+    strcpy_s(info[1].Name,              sizeof(info[1].Name), "Port");
+    info[1].Default.ValueInt = 7497;
+    info[1].Type = ConnectionAdapterParameter::Type::Integer;
 }
 
 //
@@ -82,28 +97,44 @@ void IBKRClient::SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr)
     mLogObjectPtr = logObjectPtr;
 }
 
-void IBKRClient::Connect(const ConnectionInfo &connectionInfo, std::function<void()> callback)
+void IBKRClient::Connect(const ConnectInfo& connectInfo)
 {
-    if (mAsyncConnectionThread.joinable()) mAsyncConnectionThread.join();
-    mAsyncConnectionThread = std::thread([this, connectionInfo, callback]() {
+    // Save the connection data
+    int clientId = mClientCount++;
+    ConnectionAdapterParameter::Value paramIP = connectInfo.ParameterValues[0];
+    ConnectionAdapterParameter::Value paramPort = connectInfo.ParameterValues[1];
 
+    // Start the thread
+    if (mAsyncConnectionThread.joinable()) mAsyncConnectionThread.join();
+    mAsyncConnectionThread = std::thread([this, connectInfo, clientId, paramIP, paramPort]() {
+
+        // Create the result object
+        ConnectResult result;
+        result.CallbackObject = connectInfo.CallbackObject;
+
+        // Lock the mutex
         std::unique_lock<std::mutex> lk(mConnectionMutex);
-        bool res = this->mClientSocketPtr->eConnect(connectionInfo.IP.c_str(), connectionInfo.Port, connectionInfo.ClientId, mExtraAuth);
+        bool res = this->mClientSocketPtr->eConnect(paramIP.ValueStr, paramPort.ValueInt, clientId, mExtraAuth);
         if (res)
         {
+            result.Status = ResultStatus::Success;
+
             // Fire up the reader
             this->mReaderPtr = std::make_unique<EReader>(this->mClientSocketPtr.get(), &mOSSignal);
             this->mReaderPtr->start();
-
+    
             // Start listening for messages
             StartListeningForMessages();
+        }
+        else
+        {
+            result.Status = ResultStatus::Failure;
         }
 
         // The callback could be intefacing with the class and therfore locking
         // mutexes such as mConnectionMutex, so we unlock it here to prevent a deadlock.
         lk.unlock();
-        callback();
-
+        connectInfo.CallbackFunctionPtr(result);
         });
 }
 

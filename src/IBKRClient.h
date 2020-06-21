@@ -25,6 +25,7 @@ extern "C" { // Needs to expose these functions without c++ name mangling
 	LIBRARY_EXPORT void CREATE_ADAPTER_FUNC(IGenericConnectionAdapter**);
 	LIBRARY_EXPORT void DESTROY_ADAPTER_FUNC(IGenericConnectionAdapter**);
 	LIBRARY_EXPORT void GET_INFO_FUNC(ConnectionAdapterLibraryInfo*);
+	LIBRARY_EXPORT void GET_PARAM_INFO_FUNC(ConnectionAdapterParameterInfo*);
 }
 
 class IBKRClient : public IGenericConnectionAdapter, public EWrapper
@@ -35,7 +36,7 @@ public:
 
 	// IGenericConnectionAdapter implementations
 	virtual void SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr) override;
-	virtual void Connect(const ConnectionInfo& connectionInfo, std::function<void()> callback) override;
+	virtual void Connect(const ConnectInfo& connectInfo) override;
 	virtual bool IsConnected() override;
 	virtual void Disconnect() override;
 	virtual void GetStockContracts(const StockContractQuery& query, ContractQueryResult* result) override;
@@ -156,6 +157,7 @@ private:
 
 	std::mutex mConnectionMutex;
 	std::thread mAsyncConnectionThread;
+	static int mClientCount;
 	std::unique_ptr<EClientSocket> mClientSocketPtr;
 	bool mExtraAuth;
 	std::unique_ptr<EReader> mReaderPtr;
