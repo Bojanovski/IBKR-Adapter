@@ -2,6 +2,7 @@
 #include "IBKRClient.h"
 
 #include <chrono>
+#include <assert.h>
 
 using namespace std::chrono_literals;
 
@@ -57,11 +58,12 @@ void CREATE_ADAPTER_FUNC(IGenericConnectionAdapter** implementation)
 
 void DESTROY_ADAPTER_FUNC(IGenericConnectionAdapter** implementation)
 {
-    if (*implementation)
-    {
-        delete* implementation;
-        *implementation = nullptr;
-    }
+    assert(*implementation); // must not be null
+    IBKRClient* ibkrClientImpl = dynamic_cast<IBKRClient*>(*implementation);
+    assert(ibkrClientImpl); // must inherit from IBKRClient
+
+    delete ibkrClientImpl;
+    *implementation = nullptr;
 }
 
 void GET_INFO_FUNC(ConnectionAdapterLibraryInfo* info)
@@ -148,6 +150,7 @@ bool IBKRClient::IsConnected()
 
 void IBKRClient::Disconnect()
 {
+    if (mAsyncConnectionThread.joinable()) mAsyncConnectionThread.join();
     std::unique_lock<std::mutex> lk(mConnectionMutex);
     mClientSocketPtr->eDisconnect();
 }
