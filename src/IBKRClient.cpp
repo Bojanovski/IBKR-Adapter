@@ -82,11 +82,11 @@ void GET_PARAM_INFO_FUNC(ConnectionAdapterParameterInfo* info)
 {
     strcpy_s(info[0].Name,              sizeof(info[0].Name), "IP");
     strcpy_s(info[0].Default.ValueStr,  sizeof(info[0].Name), "127.0.0.1");
-    info[0].Type = ConnectionAdapterParameter::Type::String;
+    info[0].Type = ConnectionAdapterParameter::ValueType::String;
 
     strcpy_s(info[1].Name,              sizeof(info[1].Name), "Port");
     info[1].Default.ValueInt = 7497;
-    info[1].Type = ConnectionAdapterParameter::Type::Integer;
+    info[1].Type = ConnectionAdapterParameter::ValueType::Integer;
 }
 
 //

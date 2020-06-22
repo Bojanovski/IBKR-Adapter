@@ -31,15 +31,17 @@ struct ConnectionAdapterLibraryInfo
 
 struct ConnectionAdapterParameter
 {
-	enum class Type { String, Integer };
+	enum class ValueType { String, Integer, Boolean, Real };
 	union Value
 	{
 		char ValueStr[64];
 		int ValueInt;
+		bool ValueBool;
+		double ValueReal;
 	};
 
 	char Name[64];
-	Type Type;
+	ValueType Type;
 	Value Default;
 };
 typedef ConnectionAdapterParameter ConnectionAdapterParameterInfo;
