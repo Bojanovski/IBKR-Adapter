@@ -31,7 +31,7 @@ void logFunc(void* obj, LogType type, const char *str)
 
 void connectCallback(ConnectResult result)
 {
-	auto continue_thread = static_cast<std::atomic<bool> *>(result.CallbackObject);
+	auto continue_thread = static_cast<std::atomic<bool> *>(result.CallbackObjects[0]);
 	*continue_thread = true;
 }
 
@@ -65,7 +65,7 @@ int main()
 	parameterValues[1].ValueInt = 7497;
 	ConnectInfo connInfo;
 	connInfo.ParameterValues = parameterValues.data();
-	connInfo.CallbackObject = &continue_thread;
+	connInfo.CallbackObjects[0] = &continue_thread;
 	connInfo.CallbackFunctionPtr = connectCallback;
 	impl->Connect(connInfo);
 
@@ -100,7 +100,7 @@ int main()
 				contractInfo = result.ContractInfoArray[0];
 				cout << "Selected contract: " << contractInfo.ToShortString() << endl;
 			}
-				break;
+			break;
 
 			case 2:
 			{
@@ -110,7 +110,7 @@ int main()
 				if (result.Status != ResultStatus::Success) continue;
 				cout << "Order placed: " << placeInfo.ToShortString() << " id: " << result.Id << endl;
 			}
-				break;
+			break;
 
 			default:
 				break;
@@ -119,6 +119,7 @@ int main()
 		}
 	}
 
+	impl->Disconnect();
 	destroyAdapterPtr(&impl);
 	return 0;
 }

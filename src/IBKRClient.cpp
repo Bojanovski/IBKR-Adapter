@@ -102,7 +102,8 @@ void IBKRClient::SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr)
 void IBKRClient::Connect(const ConnectInfo& connectInfo)
 {
     // Save the connection data
-    void* callbackObject = connectInfo.CallbackObject;
+    void* callbackObjects[MAX_CALLBACK_OBJECTS_COUNT];
+    memcpy(callbackObjects, connectInfo.CallbackObjects, sizeof(callbackObjects));
     ConnectCallbackFunction* callbackFunctionPtr = connectInfo.CallbackFunctionPtr;
     int clientId = mClientCount++;
     ConnectionAdapterParameter::Value paramIP = connectInfo.ParameterValues[0];
@@ -110,11 +111,11 @@ void IBKRClient::Connect(const ConnectInfo& connectInfo)
 
     // Start the thread
     if (mAsyncConnectionThread.joinable()) mAsyncConnectionThread.join();
-    mAsyncConnectionThread = std::thread([this, callbackObject, callbackFunctionPtr, clientId, paramIP, paramPort]() {
+    mAsyncConnectionThread = std::thread([this, callbackObjects, callbackFunctionPtr, clientId, paramIP, paramPort]() {
 
         // Create the result object
         ConnectResult result;
-        result.CallbackObject = callbackObject;
+        memcpy(result.CallbackObjects, callbackObjects, sizeof(callbackObjects));
 
         // Lock the mutex
         std::unique_lock<std::mutex> lk(mConnectionMutex);
@@ -144,8 +145,17 @@ void IBKRClient::Connect(const ConnectInfo& connectInfo)
 
 bool IBKRClient::IsConnected()
 {
-    std::unique_lock<std::mutex> lk(mConnectionMutex);
-    return mClientSocketPtr->isConnected();
+    bool retVal;
+    if (mConnectionMutex.try_lock())
+    {
+        retVal = mClientSocketPtr->isConnected();
+        mConnectionMutex.unlock();
+    }
+    else
+    {
+        retVal = false;
+    }
+    return retVal;
 }
 
 void IBKRClient::Disconnect()
@@ -153,6 +163,7 @@ void IBKRClient::Disconnect()
     if (mAsyncConnectionThread.joinable()) mAsyncConnectionThread.join();
     std::unique_lock<std::mutex> lk(mConnectionMutex);
     mClientSocketPtr->eDisconnect();
+    mReaderPtr.reset();
 }
 
 void IBKRClient::StartListeningForMessages()

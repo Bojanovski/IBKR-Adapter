@@ -2,6 +2,11 @@
 #ifndef IGENERICCONNECTIONADAPTER_H
 #define IGENERICCONNECTIONADAPTER_H
 
+#define MAX_CALLBACK_OBJECTS_COUNT 8
+#define MAX_NAME_STRING_LENGTH 64
+#define MAX_VERSION_STRING_LENGTH 32
+#define MAX_DESCRIPTION_STRING_LENGTH 512
+
 #include <string>
 #include <vector>
 #include <functional>
@@ -13,9 +18,9 @@ class IGenericConnectionAdapter;
 //
 struct ConnectionAdapterLibraryInfo
 {
-	char Name[64];
-	char Version[64];
-	char Description[512];
+	char Name[MAX_NAME_STRING_LENGTH];
+	char Version[MAX_VERSION_STRING_LENGTH];
+	char Description[MAX_DESCRIPTION_STRING_LENGTH];
 
 	struct
 	{
@@ -61,12 +66,12 @@ typedef void ConnectCallbackFunction(ConnectResult);
 struct ConnectInfo
 {
 	ConnectionAdapterParameter::Value* ParameterValues;
-	void* CallbackObject;
+	void* CallbackObjects[MAX_CALLBACK_OBJECTS_COUNT];
 	ConnectCallbackFunction *CallbackFunctionPtr;
 };
 struct ConnectResult
 {
-	void* CallbackObject;
+	void* CallbackObjects[MAX_CALLBACK_OBJECTS_COUNT];
 	ResultStatus Status;
 };
 
