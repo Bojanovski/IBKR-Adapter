@@ -43,7 +43,10 @@ IBKRClient::IBKRClient(unsigned long signalWaitTimeout)
 IBKRClient::~IBKRClient()
 {
     Disconnect();
-    StopListeningForMessages();
+
+    // Make sure all of the threads are done
+    if (mAsyncConnectionThread.joinable()) mAsyncConnectionThread.join();
+    if (mMessgeListeningThread.joinable()) mMessgeListeningThread.join();
 }
 
 //
@@ -160,9 +163,9 @@ bool IBKRClient::IsConnected()
 
 void IBKRClient::Disconnect()
 {
-    if (mAsyncConnectionThread.joinable()) mAsyncConnectionThread.join();
     std::unique_lock<std::mutex> lk(mConnectionMutex);
     mClientSocketPtr->eDisconnect();
+    StopListeningForMessages();
     mReaderPtr.reset();
 }
 
@@ -178,7 +181,6 @@ void IBKRClient::StartListeningForMessages()
 void IBKRClient::StopListeningForMessages()
 {
     mListenForMessages = false;
-    if (mMessgeListeningThread.joinable()) mMessgeListeningThread.join();
 }
 
 void IBKRClient::GetStockContracts(const StockContractQuery& query, ContractQueryResult* result)
