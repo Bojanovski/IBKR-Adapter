@@ -60,6 +60,7 @@ typedef void LogFunction(void*, LogType, const char* msg);
 //
 // Connection
 //
+enum class ConnectionStatus { Unknown, Disconnected, Connecting, Connected, Disconnecting };
 enum class ResultStatus { Success, Failure, WaitTimeout };
 struct ConnectResult;
 typedef void ConnectCallbackFunction(ConnectResult);
@@ -131,7 +132,7 @@ class IGenericConnectionAdapter
 public:
 	virtual void SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr) = 0;
 	virtual void Connect(const ConnectInfo& connectInfo) = 0;
-	virtual bool IsConnected() = 0;
+	virtual ConnectionStatus GetConnectionStatus() = 0;
 	virtual void Disconnect() = 0;
 
 	virtual void GetStockContracts(const StockContractQuery& query, ContractQueryResult* result) = 0;

@@ -72,7 +72,7 @@ int main()
 	// Wait for the callback
 	while (!continue_thread);
 
-	if (impl->IsConnected())
+	if (impl->GetConnectionStatus() == ConnectionStatus::Connected)
 	{
 		cout << "Connection established" << endl;
 		ContractInfo contractInfo;

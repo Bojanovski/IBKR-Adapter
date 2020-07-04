@@ -36,6 +36,7 @@ IBKRClient::IBKRClient(unsigned long signalWaitTimeout)
     , mLogObjectPtr(nullptr)
     , mOrderId(-1)
     , mRequestId(0)
+    , mIsTryingToConnect(false)
 {
 
 }
@@ -104,6 +105,9 @@ void IBKRClient::SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr)
 
 void IBKRClient::Connect(const ConnectInfo& connectInfo)
 {
+    // Set the trying to connect flag
+    mIsTryingToConnect = true;
+
     // Save the connection data
     void* callbackObjects[MAX_CALLBACK_OBJECTS_COUNT];
     memcpy(callbackObjects, connectInfo.CallbackObjects, sizeof(callbackObjects));
@@ -142,21 +146,48 @@ void IBKRClient::Connect(const ConnectInfo& connectInfo)
         // The callback could be intefacing with the class and therfore locking
         // mutexes such as mConnectionMutex, so we unlock it here to prevent a deadlock.
         lk.unlock();
+        mIsTryingToConnect = false;
         callbackFunctionPtr(result);
         });
 }
 
-bool IBKRClient::IsConnected()
+ConnectionStatus IBKRClient::GetConnectionStatus()
 {
-    bool retVal;
-    if (mConnectionMutex.try_lock())
+    ConnectionStatus retVal;
+    if (mIsTryingToConnect)
     {
-        retVal = mClientSocketPtr->isConnected();
+        // The state from mClientSocketPtr does not accurately represent
+        // if the user is trying to connect because the connect function
+        // which sets this state to 'CS_CONNECTING' is called in a different thread
+        // then the thread from which the IBKRClient::Connect was called.
+        retVal = ConnectionStatus::Connecting;
+    }
+    else if (mConnectionMutex.try_lock())
+    {
+        // If the flag for trying to connect is not true, that must
+        // mean that the connection is either successfully established
+        // or that it failed.
+        EClient::ConnState state = mClientSocketPtr->connState();
+        switch (state)
+        {
+        case EClient::ConnState::CS_CONNECTED:
+            retVal = ConnectionStatus::Connected;
+            break;
+        case EClient::ConnState::CS_CONNECTING:
+        case EClient::ConnState::CS_DISCONNECTED:
+        case EClient::ConnState::CS_REDIRECT:
+        default:
+            retVal = ConnectionStatus::Disconnected;
+            break;
+        }
         mConnectionMutex.unlock();
     }
     else
     {
-        retVal = false;
+        // The mutex is locked but the connetion is not 
+        // being attempted. We must be in a destructor in 
+        // another thread.
+        retVal = ConnectionStatus::Disconnected;
     }
     return retVal;
 }

@@ -37,7 +37,7 @@ public:
 	// IGenericConnectionAdapter implementations
 	virtual void SetLogFunction(LogFunction* logFunctionPtr, void* logObjectPtr) override;
 	virtual void Connect(const ConnectInfo& connectInfo) override;
-	virtual bool IsConnected() override;
+	virtual ConnectionStatus GetConnectionStatus() override;
 	virtual void Disconnect() override;
 	virtual void GetStockContracts(const StockContractQuery& query, ContractQueryResult* result) override;
 	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) override;
@@ -156,6 +156,7 @@ private:
 	unsigned long mSignalWaitTimeout;
 
 	std::mutex mConnectionMutex;
+	std::atomic<bool> mIsTryingToConnect;
 	std::thread mAsyncConnectionThread;
 	static int mClientCount;
 	std::unique_ptr<EClientSocket> mClientSocketPtr;
