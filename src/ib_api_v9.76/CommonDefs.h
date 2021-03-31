@@ -23,7 +23,7 @@ inline const char* faDataTypeStr ( faDataType pFaDataType )
 	return 0 ;
 }
 
-enum MarketDataType { 
+enum class MarketDataType { 
 	REALTIME = 1, 
 	FROZEN = 2,
 	DELAYED = 3,

@@ -6,20 +6,287 @@
 
 using namespace std::chrono_literals;
 
-void fromContractInfoToContract(Contract& contractOut, const ContractInfo& contractInfoIn)
+std::string tickTypeToStr(TickType tt)
 {
-    contractOut.conId = contractInfoIn.Id;
-    contractOut.symbol = contractInfoIn.Symbol;
-    contractOut.currency = contractInfoIn.Currency;
-    contractOut.exchange = contractInfoIn.Exchange;
-}
-
-void fromContractDetailsToContractInfo(ContractInfo& contractInfoOut, const ContractDetails& contractDetailsIn)
-{
-    contractInfoOut.Id = contractDetailsIn.contract.conId;
-    contractInfoOut.Symbol = contractDetailsIn.contract.symbol;
-    contractInfoOut.Currency = contractDetailsIn.contract.currency;
-    contractInfoOut.Exchange = contractDetailsIn.contract.exchange;
+    switch (tt)
+    {
+    case TickType::BID_SIZE:
+        return "BID_SIZE";
+        break;
+    case TickType::BID:
+        return "BID";
+        break;
+    case TickType::ASK:
+        return "ASK";
+        break;
+    case TickType::ASK_SIZE:
+        return "ASK_SIZE";
+        break;
+    case TickType::LAST:
+        return "LAST";
+        break;
+    case TickType::LAST_SIZE:
+        return "LAST_SIZE";
+        break;
+    case TickType::HIGH:
+        return "HIGH";
+        break;
+    case TickType::LOW:
+        return "LOW";
+        break;
+    case TickType::VOLUME:
+        return "VOLUME";
+        break;
+    case TickType::CLOSE:
+        return "CLOSE";
+        break;
+    case TickType::BID_OPTION_COMPUTATION:
+        return "BID_OPTION_COMPUTATION";
+        break;
+    case TickType::ASK_OPTION_COMPUTATION:
+        return "ASK_OPTION_COMPUTATION";
+        break;
+    case TickType::LAST_OPTION_COMPUTATION:
+        return "LAST_OPTION_COMPUTATION";
+        break;
+    case TickType::MODEL_OPTION:
+        return "MODEL_OPTION";
+        break;
+    case TickType::OPEN:
+        return "OPEN";
+        break;
+    case TickType::LOW_13_WEEK:
+        return "LOW_13_WEEK";
+        break;
+    case TickType::HIGH_13_WEEK:
+        return "HIGH_13_WEEK";
+        break;
+    case TickType::LOW_26_WEEK:
+        return "LOW_26_WEEK";
+        break;
+    case TickType::HIGH_26_WEEK:
+        return "HIGH_26_WEEK";
+        break;
+    case TickType::LOW_52_WEEK:
+        return "LOW_52_WEEK";
+        break;
+    case TickType::HIGH_52_WEEK:
+        return "HIGH_52_WEEK";
+        break;
+    case TickType::AVG_VOLUME:
+        return "AVG_VOLUME";
+        break;
+    case TickType::OPEN_INTEREST:
+        return "OPEN_INTEREST";
+        break;
+    case TickType::OPTION_HISTORICAL_VOL:
+        return "OPTION_HISTORICAL_VOL";
+        break;
+    case TickType::OPTION_IMPLIED_VOL:
+        return "OPTION_IMPLIED_VOL";
+        break;
+    case TickType::OPTION_BID_EXCH:
+        return "OPTION_BID_EXCH";
+        break;
+    case TickType::OPTION_ASK_EXCH:
+        return "OPTION_ASK_EXCH";
+        break;
+    case TickType::OPTION_CALL_OPEN_INTEREST:
+        return "OPTION_CALL_OPEN_INTEREST";
+        break;
+    case TickType::OPTION_PUT_OPEN_INTEREST:
+        return "OPTION_PUT_OPEN_INTEREST";
+        break;
+    case TickType::OPTION_CALL_VOLUME:
+        return "OPTION_CALL_VOLUME";
+        break;
+    case TickType::OPTION_PUT_VOLUME:
+        return "OPTION_PUT_VOLUME";
+        break;
+    case TickType::INDEX_FUTURE_PREMIUM:
+        return "INDEX_FUTURE_PREMIUM";
+        break;
+    case TickType::BID_EXCH:
+        return "BID_EXCH";
+        break;
+    case TickType::ASK_EXCH:
+        return "ASK_EXCH";
+        break;
+    case TickType::AUCTION_VOLUME:
+        return "AUCTION_VOLUME";
+        break;
+    case TickType::AUCTION_PRICE:
+        return "AUCTION_PRICE";
+        break;
+    case TickType::AUCTION_IMBALANCE:
+        return "AUCTION_IMBALANCE";
+        break;
+    case TickType::MARK_PRICE:
+        return "MARK_PRICE";
+        break;
+    case TickType::BID_EFP_COMPUTATION:
+        return "BID_EFP_COMPUTATION";
+        break;
+    case TickType::ASK_EFP_COMPUTATION:
+        return "ASK_EFP_COMPUTATION";
+        break;
+    case TickType::LAST_EFP_COMPUTATION:
+        return "LAST_EFP_COMPUTATION";
+        break;
+    case TickType::OPEN_EFP_COMPUTATION:
+        return "OPEN_EFP_COMPUTATION";
+        break;
+    case TickType::HIGH_EFP_COMPUTATION:
+        return "HIGH_EFP_COMPUTATION";
+        break;
+    case TickType::LOW_EFP_COMPUTATION:
+        return "LOW_EFP_COMPUTATION";
+        break;
+    case TickType::CLOSE_EFP_COMPUTATION:
+        return "CLOSE_EFP_COMPUTATION";
+        break;
+    case TickType::LAST_TIMESTAMP:
+        return "LAST_TIMESTAMP";
+        break;
+    case TickType::SHORTABLE:
+        return "SHORTABLE";
+        break;
+    case TickType::FUNDAMENTAL_RATIOS:
+        return "FUNDAMENTAL_RATIOS";
+        break;
+    case TickType::RT_VOLUME:
+        return "RT_VOLUME";
+        break;
+    case TickType::HALTED:
+        return "HALTED";
+        break;
+    case TickType::BID_YIELD:
+        return "BID_YIELD";
+        break;
+    case TickType::ASK_YIELD:
+        return "ASK_YIELD";
+        break;
+    case TickType::LAST_YIELD:
+        return "LAST_YIELD";
+        break;
+    case TickType::CUST_OPTION_COMPUTATION:
+        return "CUST_OPTION_COMPUTATION";
+        break;
+    case TickType::TRADE_COUNT:
+        return "TRADE_COUNT";
+        break;
+    case TickType::TRADE_RATE:
+        return "TRADE_RATE";
+        break;
+    case TickType::VOLUME_RATE:
+        return "VOLUME_RATE";
+        break;
+    case TickType::LAST_RTH_TRADE:
+        return "LAST_RTH_TRADE";
+        break;
+    case TickType::RT_HISTORICAL_VOL:
+        return "RT_HISTORICAL_VOL";
+        break;
+    case TickType::IB_DIVIDENDS:
+        return "IB_DIVIDENDS";
+        break;
+    case TickType::BOND_FACTOR_MULTIPLIER:
+        return "BOND_FACTOR_MULTIPLIER";
+        break;
+    case TickType::REGULATORY_IMBALANCE:
+        return "REGULATORY_IMBALANCE";
+        break;
+    case TickType::NEWS_TICK:
+        return "NEWS_TICK";
+        break;
+    case TickType::SHORT_TERM_VOLUME_3_MIN:
+        return "SHORT_TERM_VOLUME_3_MIN";
+        break;
+    case TickType::SHORT_TERM_VOLUME_5_MIN:
+        return "SHORT_TERM_VOLUME_5_MIN";
+        break;
+    case TickType::SHORT_TERM_VOLUME_10_MIN:
+        return "SHORT_TERM_VOLUME_10_MIN";
+        break;
+    case TickType::DELAYED_BID:
+        return "DELAYED_BID";
+        break;
+    case TickType::DELAYED_ASK:
+        return "DELAYED_ASK";
+        break;
+    case TickType::DELAYED_LAST:
+        return "DELAYED_LAST";
+        break;
+    case TickType::DELAYED_BID_SIZE:
+        return "DELAYED_BID_SIZE";
+        break;
+    case TickType::DELAYED_ASK_SIZE:
+        return "DELAYED_ASK_SIZE";
+        break;
+    case TickType::DELAYED_LAST_SIZE:
+        return "DELAYED_LAST_SIZE";
+        break;
+    case TickType::DELAYED_HIGH:
+        return "DELAYED_HIGH";
+        break;
+    case TickType::DELAYED_LOW:
+        return "DELAYED_LOW";
+        break;
+    case TickType::DELAYED_VOLUME:
+        return "DELAYED_VOLUME";
+        break;
+    case TickType::DELAYED_CLOSE:
+        return "DELAYED_CLOSE";
+        break;
+    case TickType::DELAYED_OPEN:
+        return "DELAYED_OPEN";
+        break;
+    case TickType::RT_TRD_VOLUME:
+        return "RT_TRD_VOLUME";
+        break;
+    case TickType::CREDITMAN_MARK_PRICE:
+        return "CREDITMAN_MARK_PRICE";
+        break;
+    case TickType::CREDITMAN_SLOW_MARK_PRICE:
+        return "CREDITMAN_SLOW_MARK_PRICE";
+        break;
+    case TickType::DELAYED_BID_OPTION_COMPUTATION:
+        return "DELAYED_BID_OPTION_COMPUTATION";
+        break;
+    case TickType::DELAYED_ASK_OPTION_COMPUTATION:
+        return "DELAYED_ASK_OPTION_COMPUTATION";
+        break;
+    case TickType::DELAYED_LAST_OPTION_COMPUTATION:
+        return "DELAYED_LAST_OPTION_COMPUTATION";
+        break;
+    case TickType::DELAYED_MODEL_OPTION_COMPUTATION:
+        return "DELAYED_MODEL_OPTION_COMPUTATION";
+        break;
+    case TickType::LAST_EXCH:
+        return "LAST_EXCH";
+        break;
+    case TickType::LAST_REG_TIME:
+        return "LAST_REG_TIME";
+        break;
+    case TickType::FUTURES_OPEN_INTEREST:
+        return "FUTURES_OPEN_INTEREST";
+        break;
+    case TickType::AVG_OPT_VOLUME:
+        return "AVG_OPT_VOLUME";
+        break;
+    case TickType::DELAYED_LAST_TIMESTAMP:
+        return "DELAYED_LAST_TIMESTAMP";
+        break;
+    case TickType::SHORTABLE_SHARES:
+        return "SHORTABLE_SHARES";
+        break;
+    case TickType::NOT_SET:
+        return "NOT_SET";
+        break;
+    default:
+        return std::to_string((int)tt);
+        break;
+    }
 }
 
 int IBKRClient::mClientCount = 0;
@@ -35,7 +302,8 @@ IBKRClient::IBKRClient(unsigned long signalWaitTimeout)
     , mLogFunctionPtr(nullptr)
     , mLogObjectPtr(nullptr)
     , mOrderId(-1)
-    , mRequestId(0)
+    , mContractRequestId(0)
+    , mMarketDataRequestId(0)
     , mIsTryingToConnect(false)
 {
 
@@ -214,25 +482,40 @@ void IBKRClient::StopListeningForMessages()
     mListenForMessages = false;
 }
 
-void IBKRClient::GetStockContracts(const StockContractQuery& query, ContractQueryResult* result)
+void IBKRClient::FromContractInfoToContract(Contract& contractOut, const ContractInfo& contractInfoIn)
+{
+    contractOut.conId = ContractInfo_To_ContractId[contractInfoIn];
+    contractOut.symbol = contractInfoIn.Symbol;
+    contractOut.currency = contractInfoIn.Currency;
+    contractOut.exchange = contractInfoIn.Exchange;
+}
+
+void IBKRClient::FromContractDetailsToContractInfo(ContractInfo& contractInfoOut, const ContractDetails& contractDetailsIn)
+{
+    contractInfoOut.Symbol = contractDetailsIn.contract.symbol;
+    contractInfoOut.Currency = contractDetailsIn.contract.currency;
+    contractInfoOut.Exchange = contractDetailsIn.contract.exchange;
+}
+
+void IBKRClient::GetStockContracts(const ContractInfo& query, ContractQueryResult* result)
 {
     Contract contract;
     contract.symbol = query.Symbol;
     contract.secType = "STK";
     contract.currency = query.Currency;
     contract.exchange = query.Exchange;
-    mClientSocketPtr->reqContractDetails(mRequestId, contract);
+    mClientSocketPtr->reqContractDetails(mContractRequestId, contract);
 
     // Wait until the data is received
     std::unique_lock<std::mutex> lk(mContractRequestMutex);
-    mRequestIdToContractRequestResponse[mRequestId].Reset();
-    bool waitResultSuccess = mContractRequestConditionVariable.wait_for(lk, mSignalWaitTimeout * 1ms, [this] {return this->mRequestIdToContractRequestResponse[this->mRequestId].mIsDone; });
+    mRequestId_To_ContractRequestResponse[mContractRequestId].Reset();
+    bool waitResultSuccess = mContractRequestConditionVariable.wait_for(lk, mSignalWaitTimeout * 1ms, [this] {return this->mRequestId_To_ContractRequestResponse[this->mContractRequestId].mIsDone; });
 
    if (waitResultSuccess)
    {
        // Get the contracts information
-       result->RequestId = mRequestId;
-       result->ContractInfoArray = mRequestIdToContractRequestResponse[mRequestId].mReceivedContractInfos;
+       result->RequestId = mContractRequestId;
+       result->ContractInfoArray = mRequestId_To_ContractRequestResponse[mContractRequestId].mReceivedContractInfos;
        result->Status = ResultStatus::Success;
    }
    else
@@ -243,15 +526,56 @@ void IBKRClient::GetStockContracts(const StockContractQuery& query, ContractQuer
    }
 
     // Clear the data to preserve memory
-    mRequestIdToContractRequestResponse[mRequestId].Reset();
+    mRequestId_To_ContractRequestResponse[mContractRequestId].Reset();
 
     // Increase the request id for future requests
-    ++mRequestId;
+    ++mContractRequestId;
 
     // Manual unlocking is done before notifying, to avoid waking up
     // the waiting thread only to block again
     lk.unlock();
     mContractRequestConditionVariable.notify_one();
+}
+
+void IBKRClient::RequestMarketData(const MarketDataInfo& marketDataInfo, MarketDataRequestResult* result)
+{
+    std::string logMsg = std::string((std::string)"Market data request submitted for: " +
+        marketDataInfo.ConInfoPtr->ToShortString()) +
+        " Request Id: " + std::to_string(mMarketDataRequestId);
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    // Set the contract info
+    Contract contract;
+    FromContractInfoToContract(contract, *marketDataInfo.ConInfoPtr);
+
+    // by default only real - time(1) market data is enabled sending 1 (real - time) disables frozen, delayed and delayed-frozen market data
+    // sending 2 (frozen)enables frozen market data
+    // sending 3 (delayed)enables delayed and disables delayed - frozen market data
+    // sending 4 (delayed - frozen) enables delayed and delayed - frozen market data
+    MarketDataType mktType = MarketDataType::DELAYED_FROZEN;
+    mClientSocketPtr->reqMarketDataType((int)mktType);
+    
+    // Request the data
+    mClientSocketPtr->reqMktData(mMarketDataRequestId, contract, "", false, false, TagValueListSPtr());
+
+    // Fill the return structure
+    result->RequestId = mMarketDataRequestId;
+
+    // Save the receive function and object
+    mRequestId_To_ReceiveMarketDataFunc[mMarketDataRequestId] = marketDataInfo.ReceiveMarketDataFunctionPtr;
+    mRequestId_To_ReceiveVolumeFunc[mMarketDataRequestId] = marketDataInfo.ReceiveVolumeDataFunctionPtr;
+    mRequestId_To_ReceivePriceFunc[mMarketDataRequestId] = marketDataInfo.ReceivePriceDataFunctionPtr;
+    mRequestId_To_ReceiveObject[mMarketDataRequestId] = marketDataInfo.ReceiveMarketDataObjectPtr;
+
+    // Increase the request id for future requests
+    ++mMarketDataRequestId;
+}
+
+void IBKRClient::CancelMarketData(const MarketDataRequestResult& requestResult)
+{
+    std::string logMsg = std::string((std::string)"Market data cancellation submitted. Request Id: " + std::to_string(requestResult.RequestId));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+    mClientSocketPtr->cancelMktData(requestResult.RequestId);
 }
 
 void IBKRClient::PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result)
@@ -273,7 +597,7 @@ void IBKRClient::PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResu
 
     // Set the contract info
     Contract contract;
-    fromContractInfoToContract(contract, *orderInfo.ConInfoPtr);
+    FromContractInfoToContract(contract, *orderInfo.ConInfoPtr);
 
     // Wait until the order id gets updated
     std::unique_lock<std::mutex> lk(mOrderIdMutex);
@@ -309,10 +633,143 @@ void IBKRClient::PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResu
 
 void IBKRClient::tickPrice(TickerId tickerId, TickType field, double price, const TickAttrib& attrib)
 {
+    std::string logMsg = std::string(
+        (std::string)"Tick Price. Ticker Id:" + std::to_string(tickerId) +
+        (std::string)", Field: " + tickTypeToStr(field) +
+        (std::string)", Price: " + std::to_string(price) +
+        (std::string)", CanAutoExecute: " + std::to_string(attrib.canAutoExecute) +
+        (std::string)", PastLimit: " + std::to_string(attrib.pastLimit) +
+        (std::string)", PreOpen: " + std::to_string(attrib.preOpen));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    // Decide what to do based on the field type
+    void* receiveObj = mRequestId_To_ReceiveObject[tickerId];
+    ReceiveMarketDataType marketDataType;
+    ReceivePriceDataType priceDataType;
+    // For tick types see: http://interactivebrokers.github.io/tws-api/tick_types.html
+    switch (field)
+    {
+    case TickType::ASK:
+    case TickType::ASK_SIZE:
+    case TickType::DELAYED_ASK:
+    case TickType::DELAYED_ASK_SIZE:
+        marketDataType = ReceiveMarketDataType::Ask;
+        mRequestIdDataType_To_PriceSize[tickerId][marketDataType].first = price;
+        break;
+
+    case TickType::BID:
+    case TickType::BID_SIZE:
+    case TickType::DELAYED_BID:
+    case TickType::DELAYED_BID_SIZE:
+        marketDataType = ReceiveMarketDataType::Bid;
+        mRequestIdDataType_To_PriceSize[tickerId][marketDataType].first = price;
+        break;
+
+    case TickType::LAST:
+    case TickType::LAST_SIZE:
+    case TickType::DELAYED_LAST:
+    case TickType::DELAYED_LAST_SIZE:
+        marketDataType = ReceiveMarketDataType::Last;
+        mRequestIdDataType_To_PriceSize[tickerId][marketDataType].first = price;
+        break;
+
+    case TickType::HIGH:
+    case TickType::DELAYED_HIGH:
+        priceDataType = ReceivePriceDataType::High;
+        mRequestIdPriceType_To_Price[tickerId][priceDataType] = price;
+        if (mRequestId_To_ReceivePriceFunc[tickerId])
+            mRequestId_To_ReceivePriceFunc[tickerId](receiveObj, tickerId, priceDataType, price);
+        break;
+
+    case TickType::LOW:
+    case TickType::DELAYED_LOW:
+        priceDataType = ReceivePriceDataType::Low;
+        mRequestIdPriceType_To_Price[tickerId][priceDataType] = price;
+        if (mRequestId_To_ReceivePriceFunc[tickerId])
+            mRequestId_To_ReceivePriceFunc[tickerId](receiveObj, tickerId, priceDataType, price);
+        break;
+
+    case TickType::OPEN:
+    case TickType::DELAYED_OPEN:
+        priceDataType = ReceivePriceDataType::Open;
+        mRequestIdPriceType_To_Price[tickerId][priceDataType] = price;
+        if (mRequestId_To_ReceivePriceFunc[tickerId])
+            mRequestId_To_ReceivePriceFunc[tickerId](receiveObj, tickerId, priceDataType, price);
+        break;
+
+    case TickType::CLOSE:
+    case TickType::DELAYED_CLOSE:
+        priceDataType = ReceivePriceDataType::Close;
+        mRequestIdPriceType_To_Price[tickerId][priceDataType] = price;
+        if (mRequestId_To_ReceivePriceFunc[tickerId])
+            mRequestId_To_ReceivePriceFunc[tickerId](receiveObj, tickerId, priceDataType, price);
+        break;
+
+    default:
+        marketDataType = ReceiveMarketDataType::Unknown;
+        break;
+    }
 }
 
 void IBKRClient::tickSize(TickerId tickerId, TickType field, int size)
 {
+    std::string logMsg = std::string(
+        (std::string)"Tick Size. Ticker Id:" + std::to_string(tickerId) +
+        (std::string)", Field: " + tickTypeToStr(field) +
+        (std::string)", Size: " + std::to_string(size));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    // Decide what to do based on the field type
+    void* receiveObj = mRequestId_To_ReceiveObject[tickerId];
+    ReceiveMarketDataType marketDataType;
+    double price;
+    // For tick types see: http://interactivebrokers.github.io/tws-api/tick_types.html
+    switch (field)
+    {
+    case TickType::ASK:
+    case TickType::ASK_SIZE:
+    case TickType::DELAYED_ASK:
+    case TickType::DELAYED_ASK_SIZE:
+        marketDataType = ReceiveMarketDataType::Ask;
+        mRequestIdDataType_To_PriceSize[tickerId][marketDataType].second = size;
+        price = mRequestIdDataType_To_PriceSize[tickerId][marketDataType].first;
+        if (mRequestId_To_ReceiveMarketDataFunc[tickerId])
+            mRequestId_To_ReceiveMarketDataFunc[tickerId](receiveObj, tickerId, marketDataType, price, size);
+        break;
+
+    case TickType::BID:
+    case TickType::BID_SIZE:
+    case TickType::DELAYED_BID:
+    case TickType::DELAYED_BID_SIZE:
+        marketDataType = ReceiveMarketDataType::Bid;
+        mRequestIdDataType_To_PriceSize[tickerId][marketDataType].second = size;
+        price = mRequestIdDataType_To_PriceSize[tickerId][marketDataType].first;
+        if (mRequestId_To_ReceiveMarketDataFunc[tickerId])
+            mRequestId_To_ReceiveMarketDataFunc[tickerId](receiveObj, tickerId, marketDataType, price, size);
+        break;
+
+    case TickType::LAST:
+    case TickType::LAST_SIZE:
+    case TickType::DELAYED_LAST:
+    case TickType::DELAYED_LAST_SIZE:
+        marketDataType = ReceiveMarketDataType::Last;
+        mRequestIdDataType_To_PriceSize[tickerId][marketDataType].second = size;
+        price = mRequestIdDataType_To_PriceSize[tickerId][marketDataType].first;
+        if (mRequestId_To_ReceiveMarketDataFunc[tickerId])
+            mRequestId_To_ReceiveMarketDataFunc[tickerId](receiveObj, tickerId, marketDataType, price, size);
+        break;
+
+    case TickType::VOLUME:
+    case TickType::DELAYED_VOLUME:
+        mRequestId_To_Volume[tickerId] = size;
+        if (mRequestId_To_ReceiveVolumeFunc[tickerId])
+            mRequestId_To_ReceiveVolumeFunc[tickerId](receiveObj, tickerId, size);
+        break;
+
+    default:
+        marketDataType = ReceiveMarketDataType::Unknown;
+        break;
+    }
 }
 
 void IBKRClient::tickOptionComputation(TickerId tickerId, TickType tickType, double impliedVol, double delta, double optPrice, double pvDividend, double gamma, double vega, double theta, double undPrice)
@@ -321,10 +778,37 @@ void IBKRClient::tickOptionComputation(TickerId tickerId, TickType tickType, dou
 
 void IBKRClient::tickGeneric(TickerId tickerId, TickType tickType, double value)
 {
+    std::string logMsg = std::string(
+        (std::string)"Tick Generic. Ticker Id:" + std::to_string(tickerId) +
+        (std::string)", Type: " + tickTypeToStr(tickType) +
+        (std::string)", Value: " + std::to_string(value));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 }
 
 void IBKRClient::tickString(TickerId tickerId, TickType tickType, const std::string& value)
 {
+    std::string valueStr = value;
+    if (tickType == TickType::LAST_TIMESTAMP ||
+        tickType == TickType::LAST_REG_TIME ||
+        tickType == TickType::DELAYED_LAST_TIMESTAMP)
+    {
+        long long timeVal = std::stoll(value);
+        struct tm timeStruct;
+        gmtime_s(&timeStruct , &timeVal);
+        valueStr = 
+            std::to_string(timeStruct.tm_year + 1900) + "-" +
+            std::to_string(timeStruct.tm_mon + 1) + "-" +
+            std::to_string(timeStruct.tm_mday) + "_" +
+            std::to_string(timeStruct.tm_hour) + ":" +
+            std::to_string(timeStruct.tm_min) + ":" +
+            std::to_string(timeStruct.tm_sec);
+    }
+
+    std::string logMsg = std::string(
+        (std::string)"Tick String. Ticker Id:" + std::to_string(tickerId) +
+        (std::string)", Type: " + tickTypeToStr(tickType) +
+        (std::string)", Value: " + valueStr);
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 }
 
 void IBKRClient::tickEFP(TickerId tickerId, TickType tickType, double basisPoints, const std::string& formattedBasisPoints, double totalDividends, int holdDays, const std::string& futureLastTradeDate, double dividendImpact, double dividendsToLastTradeDate)
@@ -333,17 +817,17 @@ void IBKRClient::tickEFP(TickerId tickerId, TickType tickType, double basisPoint
 
 void IBKRClient::orderStatus(OrderId orderId, const std::string& status, double filled, double remaining, double avgFillPrice, int permId, int parentId, double lastFillPrice, int clientId, const std::string& whyHeld, double mktCapPrice)
 {
-    mLogFunctionPtr(mLogObjectPtr, LogType::Info, std::string("Got order: " + std::to_string(orderId) + " status: " + status).c_str());
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, std::string("Got order: " + std::to_string(orderId) + ", Status: " + status).c_str());
 }
 
 void IBKRClient::openOrder(OrderId orderId, const Contract& contract, const Order& order, const OrderState& orderState)
 {
-    mLogFunctionPtr(mLogObjectPtr, LogType::Info, std::string("Got open order: " + std::to_string(orderId)).c_str());
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, std::string("Got open order: " + std::to_string(orderId)).c_str());
 }
 
 void IBKRClient::openOrderEnd()
 {
-    mLogFunctionPtr(mLogObjectPtr, LogType::Info, std::string("Got open order feed end").c_str());
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, std::string("Got open order feed end").c_str());
 }
 
 void IBKRClient::winError(const std::string& str, int lastError)
@@ -373,7 +857,7 @@ void IBKRClient::accountDownloadEnd(const std::string& accountName)
 void IBKRClient::nextValidId(OrderId orderId)
 {
     std::unique_lock<std::mutex> lk(mOrderIdMutex);
-    mLogFunctionPtr(mLogObjectPtr, LogType::Info, ("Got new valid Id: " + std::to_string(orderId)).c_str());
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, ("Got new valid Id: " + std::to_string(orderId)).c_str());
     mOrderId = orderId;
     lk.unlock();
     mOrderIdConditionVariable.notify_one();
@@ -383,10 +867,15 @@ void IBKRClient::contractDetails(int reqId, const ContractDetails& contractDetai
 {
     // Append the contract
     std::unique_lock<std::mutex> lk(mContractRequestMutex);
-    mRequestIdToContractRequestResponse[reqId].mReceivedContractInfos.push_back(ContractInfo());
-    ContractInfo &conInfo = mRequestIdToContractRequestResponse[reqId].mReceivedContractInfos.back();
-    fromContractDetailsToContractInfo(conInfo, contractDetails);
-    mLogFunctionPtr(mLogObjectPtr, LogType::Info, ("Got " + conInfo.ToShortString() + " from request: " + std::to_string(reqId)).c_str());
+    mRequestId_To_ContractRequestResponse[reqId].mReceivedContractInfos.push_back(ContractInfo());
+    ContractInfo &conInfo = mRequestId_To_ContractRequestResponse[reqId].mReceivedContractInfos.back();
+    FromContractDetailsToContractInfo(conInfo, contractDetails);
+
+    // Save the contract id
+    ContractInfo_To_ContractId[conInfo] = contractDetails.contract.conId;
+
+    // Log
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, ("Got " + conInfo.ToShortString() + " from request: " + std::to_string(reqId)).c_str());
 }
 
 void IBKRClient::bondContractDetails(int reqId, const ContractDetails& contractDetails)
@@ -397,9 +886,9 @@ void IBKRClient::contractDetailsEnd(int reqId)
 {
     // Mark the request as done and send the signal
     std::unique_lock<std::mutex> lk(mContractRequestMutex);
-    int count = (int)mRequestIdToContractRequestResponse[reqId].mReceivedContractInfos.size();
-    mLogFunctionPtr(mLogObjectPtr, LogType::Info, ("Got " + std::to_string(count) + " total contracts from request: " + std::to_string(reqId)).c_str());
-    mRequestIdToContractRequestResponse[reqId].mIsDone = true;
+    int count = (int)mRequestId_To_ContractRequestResponse[reqId].mReceivedContractInfos.size();
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, ("Got " + std::to_string(count) + " total contracts from request: " + std::to_string(reqId)).c_str());
+    mRequestId_To_ContractRequestResponse[reqId].mIsDone = true;
     // First unlock and then notify is a more efficient way
     lk.unlock();
     mContractRequestConditionVariable.notify_one();
@@ -421,7 +910,7 @@ void IBKRClient::error(int id, int errorCode, const std::string& errorString)
         // Callbacks to IBApi::EWrapper::error with errorId as -1 do not represent true 'errors'
         // but only notifications that a connection has been made successfully to the IB market data farms.
     case -1:
-        logType = LogType::Info;
+        logType = LogType::Debug;
         break;
     default:
         logType = LogType::Error;
@@ -452,7 +941,7 @@ void IBKRClient::updateNewsBulletin(int msgId, int msgType, const std::string& n
 
 void IBKRClient::managedAccounts(const std::string& accountsList)
 {
-    mLogFunctionPtr(mLogObjectPtr, LogType::Info, ("Account List: " + accountsList).c_str());
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, ("Account List: " + accountsList).c_str());
 }
 
 void IBKRClient::receiveFA(faDataType pFaDataType, const std::string& cxml)
@@ -603,6 +1092,13 @@ void IBKRClient::smartComponents(int reqId, const SmartComponentsMap& theMap)
 
 void IBKRClient::tickReqParams(int tickerId, double minTick, const std::string& bboExchange, int snapshotPermissions)
 {
+    std::string logMsg = std::string(
+        (std::string)"Tick Req Params. Ticker Id:" + std::to_string(tickerId) +
+        (std::string)", Min Tick: " + std::to_string(minTick) +
+        (std::string)", BBO Exchange: " + bboExchange +
+        (std::string)", Snapshot Permissions: " + std::to_string(snapshotPermissions));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+    //m_bboExchange = bboExchange;
 }
 
 void IBKRClient::newsProviders(const std::vector<NewsProvider>& newsProviders)

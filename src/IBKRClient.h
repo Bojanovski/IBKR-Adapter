@@ -14,6 +14,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <map>
+#include <unordered_map>
 
 #ifdef WIN32
 #define LIBRARY_EXPORT __declspec(dllexport)
@@ -39,7 +41,9 @@ public:
 	virtual void Connect(const ConnectInfo& connectInfo) override;
 	virtual ConnectionStatus GetConnectionStatus() override;
 	virtual void Disconnect() override;
-	virtual void GetStockContracts(const StockContractQuery& query, ContractQueryResult* result) override;
+	virtual void GetStockContracts(const ContractInfo& query, ContractQueryResult* result) override;
+	virtual void RequestMarketData(const MarketDataInfo& marketDataInfo, MarketDataRequestResult* result) override;
+	virtual void CancelMarketData(const MarketDataRequestResult& requestResult) override;
 	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) override;
 
 	// EWrapper implementations
@@ -151,6 +155,9 @@ private:
 	// Stops the listener
 	void StopListeningForMessages();
 
+	void FromContractInfoToContract(Contract& contractOut, const ContractInfo& contractInfoIn);
+	void FromContractDetailsToContractInfo(ContractInfo& contractInfoOut, const ContractDetails& contractDetailsIn);
+
 private:
 	EReaderOSSignal mOSSignal;
 	unsigned long mSignalWaitTimeout;
@@ -177,12 +184,23 @@ private:
 	// Requesting contract data
 	std::mutex mContractRequestMutex;
 	std::condition_variable mContractRequestConditionVariable;
-	int mRequestId;
+	int mContractRequestId;
 	struct ContractRequestResponse
 	{
 		void Reset();
 		bool mIsDone{ false };
 		std::vector<ContractInfo> mReceivedContractInfos;
 	};
-	std::map<int, ContractRequestResponse> mRequestIdToContractRequestResponse;
+	std::map<int, ContractRequestResponse> mRequestId_To_ContractRequestResponse;
+	std::unordered_map<ContractInfo, long, ContractInfo::HashFunction> ContractInfo_To_ContractId;
+
+	// Requesting market data
+	long mMarketDataRequestId;
+	std::unordered_map<int, ReceiveMarketDataFunction*> mRequestId_To_ReceiveMarketDataFunc;
+	std::unordered_map<int, ReceiveVolumeDataFunction*> mRequestId_To_ReceiveVolumeFunc;
+	std::unordered_map<int, ReceivePriceDataFunction*> mRequestId_To_ReceivePriceFunc;
+	std::unordered_map<int, void*> mRequestId_To_ReceiveObject;
+	std::unordered_map<long, std::unordered_map<ReceiveMarketDataType, std::pair<double, int>>> mRequestIdDataType_To_PriceSize;
+	std::unordered_map<long, int> mRequestId_To_Volume;
+	std::unordered_map<long, std::unordered_map<ReceivePriceDataType, double>> mRequestIdPriceType_To_Price;
 };

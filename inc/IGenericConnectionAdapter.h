@@ -54,8 +54,8 @@ typedef ConnectionAdapterParameter ConnectionAdapterParameterInfo;
 //
 // Message logging
 //
-enum class LogType { Info, Warning, Error };
-typedef void LogFunction(void*, LogType, const char* msg);
+enum class LogType { Debug, Info, Warning, Error };
+typedef void LogFunction(void*, LogType, const char*);
 
 //
 // Connection
@@ -79,21 +79,55 @@ struct ConnectResult
 //
 // Contracts
 //
-typedef long ContractId;
 struct ContractInfo
 {
-	ContractId Id{ -1 };
 	std::string Symbol;
 	std::string Exchange;
 	std::string Currency;
 
 	std::string ToShortString() const { return (Exchange + ":" + Symbol + "(" + Currency + ")"); }
+
+	bool operator==(const ContractInfo& otherC) const
+	{
+		return (this->Symbol == otherC.Symbol && this->Exchange == otherC.Exchange && this->Currency == otherC.Currency);
+	}
+
+	struct HashFunction {
+		size_t operator()(const ContractInfo& c) const
+		{
+			size_t hash1 = std::hash<std::string>()(c.Symbol);
+			size_t hash2 = std::hash<std::string>()(c.Exchange);
+			size_t hash3 = std::hash<std::string>()(c.Currency);
+			return hash1 ^ hash2 ^ hash3;
+		}
+	};
 };
 struct ContractQueryResult
 {
 	std::vector<ContractInfo> ContractInfoArray;
 	int RequestId{ -1 };
 	ResultStatus Status{ ResultStatus::Failure };
+};
+
+//
+// Market Data
+//
+enum class ReceiveMarketDataType { Bid, Ask, Last, Unknown };
+typedef void ReceiveMarketDataFunction(void*, int, ReceiveMarketDataType, double, int);
+typedef void ReceiveVolumeDataFunction(void*, int, int);
+enum class ReceivePriceDataType { High, Low, Open, Close, Unknown };
+typedef void ReceivePriceDataFunction(void*, int, ReceivePriceDataType, double);
+struct MarketDataInfo
+{
+	ContractInfo* ConInfoPtr;
+	ReceiveMarketDataFunction* ReceiveMarketDataFunctionPtr;
+	ReceiveVolumeDataFunction* ReceiveVolumeDataFunctionPtr;
+	ReceivePriceDataFunction* ReceivePriceDataFunctionPtr;
+	void* ReceiveMarketDataObjectPtr;
+};
+struct MarketDataRequestResult
+{
+	long RequestId;
 };
 
 //
@@ -120,12 +154,6 @@ struct PlaceOrderResult
 	OrderId Id{ -1 };
 	ResultStatus Status{ ResultStatus::Failure };
 };
-struct StockContractQuery
-{
-	std::string Symbol;
-	std::string Exchange;
-	std::string Currency;
-};
 
 class IGenericConnectionAdapter
 {
@@ -135,7 +163,10 @@ public:
 	virtual ConnectionStatus GetConnectionStatus() = 0;
 	virtual void Disconnect() = 0;
 
-	virtual void GetStockContracts(const StockContractQuery& query, ContractQueryResult* result) = 0;
+	virtual void GetStockContracts(const ContractInfo& query, ContractQueryResult* result) = 0;
+
+	virtual void RequestMarketData(const MarketDataInfo& marketDataInfo, MarketDataRequestResult* result) = 0;
+	virtual void CancelMarketData(const MarketDataRequestResult& requestResult) = 0;
 
 	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) = 0;
 };

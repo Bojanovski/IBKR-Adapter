@@ -5,7 +5,7 @@ cmake_minimum_required (VERSION 3.8)
 project ("IBKR-Adapter")
 set(EXECUTABLE 0)
 set(LIBRARY 1)
-set(THIS_BUILD LIBRARY)
+set(THIS_BUILD LIBRARY) # <- change this to switch between executable and library
 
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
 #set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall")

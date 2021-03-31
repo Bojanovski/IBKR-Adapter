@@ -14,6 +14,9 @@ void logFunc(void* obj, LogType type, const char *str)
 	std::string typeStr = "";
 	switch (type)
 	{
+	case LogType::Debug:
+		typeStr += "Debug";
+		break;
 	case LogType::Info:
 		typeStr += "Info";
 		break;
@@ -27,6 +30,59 @@ void logFunc(void* obj, LogType type, const char *str)
 		return;
 	}
 	cout << typeStr << ": " << str << endl;
+}
+
+void receiveMarketDataFunc(void* obj, int requestId, ReceiveMarketDataType type, double price, int size)
+{
+	std::string typeStr;
+	switch (type)
+	{
+	case ReceiveMarketDataType::Bid:
+		typeStr = "Bid";
+		break;
+	case ReceiveMarketDataType::Ask:
+		typeStr = "Ask";
+		break;
+	case ReceiveMarketDataType::Last:
+		typeStr = "Last";
+		break;
+	case ReceiveMarketDataType::Unknown:
+		typeStr = "Unknown";
+		break;
+	default:
+		break;
+	}
+
+	cout << "+++++++++++++++++++++++ Request Id: " << requestId << " - " << typeStr << " - " << price << " : " << size << endl;
+}
+
+void receiveVolumeDataFunc(void* obj, int requestId, int size)
+{
+	cout << "+++++++++++++++++++++++ Request Id: " << requestId << " - " << "Daily Volume: " << size << endl;
+}
+
+void receivePriceDataFunc(void* obj, int requestId, ReceivePriceDataType priceType, double price)
+{
+	std::string typeStr;
+	switch (priceType)
+	{
+	case ReceivePriceDataType::High:
+		typeStr = "High";
+		break;
+	case ReceivePriceDataType::Low:
+		typeStr = "Low";
+		break;
+	case ReceivePriceDataType::Open:
+		typeStr = "Open";
+		break;
+	case ReceivePriceDataType::Close:
+		typeStr = "Close";
+		break;
+	default:
+		break;
+	}
+
+	cout << "+++++++++++++++++++++++ Request Id: " << requestId << " - " << typeStr << ": " << price << endl;
 }
 
 void connectCallback(ConnectResult result)
@@ -76,24 +132,27 @@ int main()
 	{
 		cout << "Connection established" << endl;
 		ContractInfo contractInfo;
+		MarketDataRequestResult result;
 		int inChoice;
 		string inStr = "";
 		while (true)
 		{
 			cout << endl << endl << "Instructions:" << endl;
-			cout << "   1 <name>     - get contract" << endl;
-			cout << "   2 <quantity> - buy" << endl;
-			cout << "   3            - exit" << endl;
+			cout << "   1 <name>		- get contract" << endl;
+			cout << "   2 <quantity>	- buy" << endl;
+			cout << "   3				- get data" << endl;
+			cout << "   4				- cancel get data" << endl;
+			cout << "   5				- exit" << endl;
 
 			cin >> inChoice;
-			if (inChoice == 3) break;
-			cin >> inStr;
-
+			bool breakLoop = true;
 			switch (inChoice)
 			{
 			case 1:
 			{
-				StockContractQuery query = { inStr, "", "USD" };
+				breakLoop = false;
+				cin >> inStr;
+				ContractInfo query = { inStr, "", "USD" };
 				ContractQueryResult result;
 				impl->GetStockContracts(query, &result);
 				if (result.Status != ResultStatus::Success) continue;
@@ -104,6 +163,8 @@ int main()
 
 			case 2:
 			{
+				breakLoop = false;
+				cin >> inStr;
 				LimitOrderInfo placeInfo = { ActionType::Buy, 900.0, (double)atoi(inStr.c_str()), &contractInfo };
 				PlaceOrderResult result;
 				impl->PlaceLimitOrder(placeInfo, &result);
@@ -112,10 +173,30 @@ int main()
 			}
 			break;
 
+			case 3:
+			{
+				breakLoop = false;
+				MarketDataInfo info = { &contractInfo, &receiveMarketDataFunc, &receiveVolumeDataFunc, &receivePriceDataFunc, nullptr };
+				result = MarketDataRequestResult();
+				impl->RequestMarketData(info, &result);
+			}
+			break;
+
+			case 4:
+			{
+				breakLoop = false;
+				impl->CancelMarketData(result);
+			}
+			break;
+
 			default:
 				break;
 			}
 
+			if (breakLoop)
+			{
+				break;
+			}
 		}
 	}
 
