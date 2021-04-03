@@ -152,11 +152,16 @@ int main()
 			{
 				breakLoop = false;
 				cin >> inStr;
-				ContractInfo query = { inStr, "", "USD" };
+				ContractInfo query;
+				strcpy_s(query.Symbol, sizeof(inStr.data()), inStr.data());
+				strcpy_s(query.Currency, sizeof("USD"), "USD");
+				strcpy_s(query.Exchange, sizeof(""), "");
 				ContractQueryResult result;
-				impl->GetStockContracts(query, &result);
+				impl->GetStockContractCount(query, &result);
 				if (result.Status != ResultStatus::Success) continue;
-				contractInfo = result.ContractInfoArray[0];
+				std::vector<ContractInfo> contracts(result.ContractCount);
+				impl->GetStockContracts(result, contracts.data());
+				contractInfo = contracts[0];
 				cout << "Selected contract: " << contractInfo.ToShortString() << endl;
 			}
 			break;

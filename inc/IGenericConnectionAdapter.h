@@ -6,8 +6,12 @@
 #define MAX_NAME_STRING_LENGTH 64
 #define MAX_VERSION_STRING_LENGTH 32
 #define MAX_DESCRIPTION_STRING_LENGTH 512
+#define MAX_SYMBOL_NAME 16
+#define MAX_EXCHANGE_NAME 16
+#define MAX_CURRENCY_NAME 8
 
 #include <string>
+#include <cstring>
 #include <vector>
 #include <functional>
 
@@ -81,30 +85,22 @@ struct ConnectResult
 //
 struct ContractInfo
 {
-	std::string Symbol;
-	std::string Exchange;
-	std::string Currency;
+	char Symbol[MAX_SYMBOL_NAME];
+	char Exchange[MAX_EXCHANGE_NAME];
+	char Currency[MAX_CURRENCY_NAME];
 
-	std::string ToShortString() const { return (Exchange + ":" + Symbol + "(" + Currency + ")"); }
+	std::string ToShortString() const { return (std::string(Exchange) + ":" + std::string(Symbol) + "(" + std::string(Currency) + ")"); }
 
 	bool operator==(const ContractInfo& otherC) const
 	{
-		return (this->Symbol == otherC.Symbol && this->Exchange == otherC.Exchange && this->Currency == otherC.Currency);
+		return (strcmp(this->Symbol, otherC.Symbol) == 0 &&
+			strcmp(this->Exchange, otherC.Exchange) == 0 &&
+			strcmp(this->Currency, otherC.Currency) == 0);
 	}
-
-	struct HashFunction {
-		size_t operator()(const ContractInfo& c) const
-		{
-			size_t hash1 = std::hash<std::string>()(c.Symbol);
-			size_t hash2 = std::hash<std::string>()(c.Exchange);
-			size_t hash3 = std::hash<std::string>()(c.Currency);
-			return hash1 ^ hash2 ^ hash3;
-		}
-	};
 };
 struct ContractQueryResult
 {
-	std::vector<ContractInfo> ContractInfoArray;
+	int ContractCount;
 	int RequestId{ -1 };
 	ResultStatus Status{ ResultStatus::Failure };
 };
@@ -163,7 +159,8 @@ public:
 	virtual ConnectionStatus GetConnectionStatus() = 0;
 	virtual void Disconnect() = 0;
 
-	virtual void GetStockContracts(const ContractInfo& query, ContractQueryResult* result) = 0;
+	virtual void GetStockContractCount(const ContractInfo& query, ContractQueryResult* result) = 0;
+	virtual void GetStockContracts(const ContractQueryResult& requestResult, ContractInfo *resultArray) = 0;
 
 	virtual void RequestMarketData(const MarketDataInfo& marketDataInfo, MarketDataRequestResult* result) = 0;
 	virtual void CancelMarketData(const MarketDataRequestResult& requestResult) = 0;

@@ -492,12 +492,12 @@ void IBKRClient::FromContractInfoToContract(Contract& contractOut, const Contrac
 
 void IBKRClient::FromContractDetailsToContractInfo(ContractInfo& contractInfoOut, const ContractDetails& contractDetailsIn)
 {
-    contractInfoOut.Symbol = contractDetailsIn.contract.symbol;
-    contractInfoOut.Currency = contractDetailsIn.contract.currency;
-    contractInfoOut.Exchange = contractDetailsIn.contract.exchange;
+    strcpy_s(contractInfoOut.Symbol, contractDetailsIn.contract.symbol.c_str());
+    strcpy_s(contractInfoOut.Exchange, contractDetailsIn.contract.exchange.c_str());
+    strcpy_s(contractInfoOut.Currency, contractDetailsIn.contract.currency.c_str());
 }
 
-void IBKRClient::GetStockContracts(const ContractInfo& query, ContractQueryResult* result)
+void IBKRClient::GetStockContractCount(const ContractInfo& query, ContractQueryResult* result)
 {
     Contract contract;
     contract.symbol = query.Symbol;
@@ -515,18 +515,15 @@ void IBKRClient::GetStockContracts(const ContractInfo& query, ContractQueryResul
    {
        // Get the contracts information
        result->RequestId = mContractRequestId;
-       result->ContractInfoArray = mRequestId_To_ContractRequestResponse[mContractRequestId].mReceivedContractInfos;
+       result->ContractCount = (int)mRequestId_To_ContractRequestResponse[mContractRequestId].mReceivedContractInfos.size();
        result->Status = ResultStatus::Success;
    }
    else
    {
        result->RequestId = -1;
-       result->ContractInfoArray.clear();
+       result->ContractCount = 0;
        result->Status = ResultStatus::WaitTimeout;
    }
-
-    // Clear the data to preserve memory
-    mRequestId_To_ContractRequestResponse[mContractRequestId].Reset();
 
     // Increase the request id for future requests
     ++mContractRequestId;
@@ -535,6 +532,21 @@ void IBKRClient::GetStockContracts(const ContractInfo& query, ContractQueryResul
     // the waiting thread only to block again
     lk.unlock();
     mContractRequestConditionVariable.notify_one();
+}
+
+void IBKRClient::GetStockContracts(const ContractQueryResult& requestResult, ContractInfo* resultArray)
+{
+    if (requestResult.Status == ResultStatus::Success)
+    {
+        auto& contractInfos = mRequestId_To_ContractRequestResponse[requestResult.RequestId].mReceivedContractInfos;
+        for (int i = 0; i < contractInfos.size(); ++i)
+        {
+            resultArray[i] = contractInfos[i];
+        }
+    }
+
+    // Clear the data to preserve memory
+    mRequestId_To_ContractRequestResponse[requestResult.RequestId].Reset();
 }
 
 void IBKRClient::RequestMarketData(const MarketDataInfo& marketDataInfo, MarketDataRequestResult* result)

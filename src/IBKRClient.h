@@ -41,7 +41,8 @@ public:
 	virtual void Connect(const ConnectInfo& connectInfo) override;
 	virtual ConnectionStatus GetConnectionStatus() override;
 	virtual void Disconnect() override;
-	virtual void GetStockContracts(const ContractInfo& query, ContractQueryResult* result) override;
+	virtual void GetStockContractCount(const ContractInfo& query, ContractQueryResult* result) override;
+	virtual void GetStockContracts(const ContractQueryResult& requestResult, ContractInfo* resultArray) override;
 	virtual void RequestMarketData(const MarketDataInfo& marketDataInfo, MarketDataRequestResult* result) override;
 	virtual void CancelMarketData(const MarketDataRequestResult& requestResult) override;
 	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) override;
@@ -192,7 +193,20 @@ private:
 		std::vector<ContractInfo> mReceivedContractInfos;
 	};
 	std::map<int, ContractRequestResponse> mRequestId_To_ContractRequestResponse;
-	std::unordered_map<ContractInfo, long, ContractInfo::HashFunction> ContractInfo_To_ContractId;
+	struct ContractInfoHashFunction 
+	{
+		size_t operator()(const ContractInfo& c) const
+		{
+			std::string symbol = std::string(c.Symbol);
+			std::string exchange = std::string(c.Exchange);
+			std::string currency = std::string(c.Currency);
+			size_t hash1 = std::hash<std::string>()(symbol);
+			size_t hash2 = std::hash<std::string>()(exchange);
+			size_t hash3 = std::hash<std::string>()(currency);
+			return hash1 ^ hash2 ^ hash3;
+		}
+	};
+	std::unordered_map<ContractInfo, long, ContractInfoHashFunction> ContractInfo_To_ContractId;
 
 	// Requesting market data
 	long mMarketDataRequestId;
