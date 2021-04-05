@@ -377,8 +377,7 @@ void IBKRClient::Connect(const ConnectInfo& connectInfo)
     mIsTryingToConnect = true;
 
     // Save the connection data
-    void* callbackObjects[MAX_CALLBACK_OBJECTS_COUNT];
-    memcpy(callbackObjects, connectInfo.CallbackObjects, sizeof(callbackObjects));
+    void* callbackObject = connectInfo.CallbackObject;
     ConnectCallbackFunction* callbackFunctionPtr = connectInfo.CallbackFunctionPtr;
     int clientId = mClientCount++;
     ConnectionAdapterParameter::Value paramIP = connectInfo.ParameterValues[0];
@@ -386,11 +385,11 @@ void IBKRClient::Connect(const ConnectInfo& connectInfo)
 
     // Start the thread
     if (mAsyncConnectionThread.joinable()) mAsyncConnectionThread.join();
-    mAsyncConnectionThread = std::thread([this, callbackObjects, callbackFunctionPtr, clientId, paramIP, paramPort]() {
+    mAsyncConnectionThread = std::thread([this, callbackObject, callbackFunctionPtr, clientId, paramIP, paramPort]() {
 
         // Create the result object
         ConnectResult result;
-        memcpy(result.CallbackObjects, callbackObjects, sizeof(callbackObjects));
+        result.CallbackObject = callbackObject;
 
         // Lock the mutex
         std::unique_lock<std::mutex> lk(mConnectionMutex);

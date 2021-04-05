@@ -2,7 +2,6 @@
 #ifndef IGENERICCONNECTIONADAPTER_H
 #define IGENERICCONNECTIONADAPTER_H
 
-#define MAX_CALLBACK_OBJECTS_COUNT 8
 #define MAX_NAME_STRING_LENGTH 64
 #define MAX_VERSION_STRING_LENGTH 32
 #define MAX_DESCRIPTION_STRING_LENGTH 512
@@ -40,7 +39,7 @@ struct ConnectionAdapterLibraryInfo
 
 struct ConnectionAdapterParameter
 {
-	enum class ValueType { String, Integer, Boolean, Real };
+	enum class ValueType : char { String, Integer, Boolean, Real };
 	union Value
 	{
 		char ValueStr[64];
@@ -64,19 +63,19 @@ typedef void LogFunction(void*, LogType, const char*);
 //
 // Connection
 //
-enum class ConnectionStatus { Unknown, Disconnected, Connecting, Connected, Disconnecting };
-enum class ResultStatus { Success, Failure, WaitTimeout };
+enum class ConnectionStatus : char { Unknown, Disconnected, Connecting, Connected, Disconnecting };
+enum class ResultStatus : char { Success, Failure, WaitTimeout };
 struct ConnectResult;
 typedef void ConnectCallbackFunction(ConnectResult);
 struct ConnectInfo
 {
 	ConnectionAdapterParameter::Value* ParameterValues;
-	void* CallbackObjects[MAX_CALLBACK_OBJECTS_COUNT];
+	void* CallbackObject;
 	ConnectCallbackFunction *CallbackFunctionPtr;
 };
 struct ConnectResult
 {
-	void* CallbackObjects[MAX_CALLBACK_OBJECTS_COUNT];
+	void* CallbackObject;
 	ResultStatus Status;
 };
 
@@ -108,14 +107,14 @@ struct ContractQueryResult
 //
 // Market Data
 //
-enum class ReceiveMarketDataType { Bid, Ask, Last, Unknown };
+enum class ReceiveMarketDataType : char { Bid, Ask, Last, Unknown };
 typedef void ReceiveMarketDataFunction(void*, int, ReceiveMarketDataType, double, int);
 typedef void ReceiveVolumeDataFunction(void*, int, int);
-enum class ReceivePriceDataType { High, Low, Open, Close, Unknown };
+enum class ReceivePriceDataType : char { High, Low, Open, Close, Unknown };
 typedef void ReceivePriceDataFunction(void*, int, ReceivePriceDataType, double);
 struct MarketDataInfo
 {
-	ContractInfo* ConInfoPtr;
+	const ContractInfo* ConInfoPtr;
 	ReceiveMarketDataFunction* ReceiveMarketDataFunctionPtr;
 	ReceiveVolumeDataFunction* ReceiveVolumeDataFunctionPtr;
 	ReceivePriceDataFunction* ReceivePriceDataFunctionPtr;
@@ -129,7 +128,7 @@ struct MarketDataRequestResult
 //
 // Actions
 //
-enum class ActionType { Buy = 0, Sell = 1 };
+enum class ActionType : char { Buy = 0, Sell = 1 };
 inline std::string ActionTypeToString(const ActionType& at) {switch (at){case ActionType::Buy:return "BUY"; case ActionType::Sell:return "SELL"; default: return "";}}
 struct LimitOrderInfo
 {

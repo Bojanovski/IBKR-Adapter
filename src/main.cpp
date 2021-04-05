@@ -87,7 +87,7 @@ void receivePriceDataFunc(void* obj, int requestId, ReceivePriceDataType priceTy
 
 void connectCallback(ConnectResult result)
 {
-	auto continue_thread = static_cast<std::atomic<bool> *>(result.CallbackObjects[0]);
+	auto continue_thread = static_cast<std::atomic<bool> *>(result.CallbackObject);
 	*continue_thread = true;
 }
 
@@ -121,7 +121,7 @@ int main()
 	parameterValues[1].ValueInt = 7497;
 	ConnectInfo connInfo;
 	connInfo.ParameterValues = parameterValues.data();
-	connInfo.CallbackObjects[0] = &continue_thread;
+	connInfo.CallbackObject = &continue_thread;
 	connInfo.CallbackFunctionPtr = connectCallback;
 	impl->Connect(connInfo);
 
