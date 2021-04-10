@@ -645,7 +645,7 @@ void IBKRClient::PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResu
 void IBKRClient::tickPrice(TickerId tickerId, TickType field, double price, const TickAttrib& attrib)
 {
     std::string logMsg = std::string(
-        (std::string)"Tick Price. Ticker Id:" + std::to_string(tickerId) +
+        (std::string)"Tick Price. Ticker Id: " + std::to_string(tickerId) +
         (std::string)", Field: " + tickTypeToStr(field) +
         (std::string)", Price: " + std::to_string(price) +
         (std::string)", CanAutoExecute: " + std::to_string(attrib.canAutoExecute) +
@@ -725,7 +725,7 @@ void IBKRClient::tickPrice(TickerId tickerId, TickType field, double price, cons
 void IBKRClient::tickSize(TickerId tickerId, TickType field, int size)
 {
     std::string logMsg = std::string(
-        (std::string)"Tick Size. Ticker Id:" + std::to_string(tickerId) +
+        (std::string)"Tick Size. Ticker Id: " + std::to_string(tickerId) +
         (std::string)", Field: " + tickTypeToStr(field) +
         (std::string)", Size: " + std::to_string(size));
     mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
@@ -790,7 +790,7 @@ void IBKRClient::tickOptionComputation(TickerId tickerId, TickType tickType, dou
 void IBKRClient::tickGeneric(TickerId tickerId, TickType tickType, double value)
 {
     std::string logMsg = std::string(
-        (std::string)"Tick Generic. Ticker Id:" + std::to_string(tickerId) +
+        (std::string)"Tick Generic. Ticker Id: " + std::to_string(tickerId) +
         (std::string)", Type: " + tickTypeToStr(tickType) +
         (std::string)", Value: " + std::to_string(value));
     mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
@@ -816,7 +816,7 @@ void IBKRClient::tickString(TickerId tickerId, TickType tickType, const std::str
     }
 
     std::string logMsg = std::string(
-        (std::string)"Tick String. Ticker Id:" + std::to_string(tickerId) +
+        (std::string)"Tick String. Ticker Id: " + std::to_string(tickerId) +
         (std::string)", Type: " + tickTypeToStr(tickType) +
         (std::string)", Value: " + valueStr);
     mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
@@ -1001,6 +1001,33 @@ void IBKRClient::tickSnapshotEnd(int reqId)
 
 void IBKRClient::marketDataType(TickerId reqId, int marketDataType)
 {
+    // More info on types and what do they do:
+    // http://interactivebrokers.github.io/tws-api/market_data_type.html
+    MarketDataType type = (MarketDataType)marketDataType;
+    std::string typeStr;
+    switch (type)
+    {
+    case MarketDataType::REALTIME:
+        typeStr = "REALTIME";
+        break;
+    case MarketDataType::FROZEN:
+        typeStr = "FROZEN";
+        break;
+    case MarketDataType::DELAYED:
+        typeStr = "DELAYED";
+        break;
+    case MarketDataType::DELAYED_FROZEN:
+        typeStr = "DELAYED_FROZEN";
+        break;
+    default:
+        typeStr = "UNKNOWN";
+        break;
+    }
+
+    std::string logMsg = std::string(
+        (std::string)"Market Data Type. Ticker Id: " + std::to_string(reqId) +
+        (std::string)", Type: " + typeStr);
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 }
 
 void IBKRClient::commissionReport(const CommissionReport& commissionReport)
@@ -1104,7 +1131,7 @@ void IBKRClient::smartComponents(int reqId, const SmartComponentsMap& theMap)
 void IBKRClient::tickReqParams(int tickerId, double minTick, const std::string& bboExchange, int snapshotPermissions)
 {
     std::string logMsg = std::string(
-        (std::string)"Tick Req Params. Ticker Id:" + std::to_string(tickerId) +
+        (std::string)"Tick Req Params. Ticker Id: " + std::to_string(tickerId) +
         (std::string)", Min Tick: " + std::to_string(minTick) +
         (std::string)", BBO Exchange: " + bboExchange +
         (std::string)", Snapshot Permissions: " + std::to_string(snapshotPermissions));

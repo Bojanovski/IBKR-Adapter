@@ -118,7 +118,8 @@ int main()
 
 	std::vector<ConnectionAdapterParameter::Value> parameterValues(adapterInfo.Parameters.Count);
 	strcpy_s(parameterValues[0].ValueStr, sizeof(parameterValues[0].ValueStr), "127.0.0.1");
-	parameterValues[1].ValueInt = 7497;
+	//parameterValues[1].ValueInt = 7497; // TWS
+	parameterValues[1].ValueInt = 4001; // GATEWAY
 	ConnectInfo connInfo;
 	connInfo.ParameterValues = parameterValues.data();
 	connInfo.CallbackObject = &continue_thread;
