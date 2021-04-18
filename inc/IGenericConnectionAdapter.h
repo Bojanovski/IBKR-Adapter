@@ -82,13 +82,47 @@ struct ConnectResult
 //
 // Contracts
 //
+enum class SecurityType : char { Stock, Future, Option };
 struct ContractInfo
 {
 	char Symbol[MAX_SYMBOL_NAME];
 	char Exchange[MAX_EXCHANGE_NAME];
 	char Currency[MAX_CURRENCY_NAME];
+	SecurityType Type;
+	union
+	{
+		struct
+		{
+			int StockData;
+		} Stock;
+		struct
+		{
+			char ExpiryDate[8];
+		} Future;
+		struct
+		{
+			int OptionData;
+		} Option;
+	};
 
-	std::string ToShortString() const { return (std::string(Exchange) + ":" + std::string(Symbol) + "(" + std::string(Currency) + ")"); }
+	std::string ToShortString() const 
+	{
+		std::string retVal = std::string(Exchange) + ":" + std::string(Symbol) + "(" + std::string(Currency);
+		switch (Type)
+		{
+		case SecurityType::Stock:
+			retVal += ",STK";
+			break;
+		case SecurityType::Future:
+			retVal += ",FUT," + std::string(Future.ExpiryDate, 8);
+			break;
+		case SecurityType::Option:
+			retVal += ",OPT";
+			break;
+		}
+		retVal += ")";
+		return retVal;
+	}
 
 	bool operator==(const ContractInfo& otherC) const
 	{
@@ -108,21 +142,31 @@ struct ContractQueryResult
 // Market Data
 //
 enum class ReceiveMarketDataType : char { Bid, Ask, Last, Unknown };
-typedef void ReceiveMarketDataFunction(void*, int, ReceiveMarketDataType, double, int);
+typedef void ReceivePriceSizeDataFunction(void*, int, ReceiveMarketDataType, double, int);
 typedef void ReceiveVolumeDataFunction(void*, int, int);
 enum class ReceivePriceDataType : char { High, Low, Open, Close, Unknown };
 typedef void ReceivePriceDataFunction(void*, int, ReceivePriceDataType, double);
-struct MarketDataInfo
+struct BaseMarketDataInfo
 {
 	const ContractInfo* ConInfoPtr;
-	ReceiveMarketDataFunction* ReceiveMarketDataFunctionPtr;
+	ReceivePriceSizeDataFunction* ReceivePriceSizeDataFunctionPtr;
 	ReceiveVolumeDataFunction* ReceiveVolumeDataFunctionPtr;
 	ReceivePriceDataFunction* ReceivePriceDataFunctionPtr;
-	void* ReceiveMarketDataObjectPtr;
+	void* ReceiveBaseMarketDataObjectPtr;
 };
-struct MarketDataRequestResult
+enum class ReceiveTimeAndSalesType : char { Buy, Sell, Unknown };
+typedef void ReceiveTimeAndSalesDataFunction(void*, int, time_t, ReceiveTimeAndSalesType, double, int);
+struct TimeAndSalesDataInfo
+{
+	const ContractInfo* ConInfoPtr;
+	ReceiveTimeAndSalesDataFunction* ReceiveTimeAndSalesDataFunctionPtr;
+	void* ReceiveTimeAndSalesDataObjectPtr;
+};
+enum class DataRequestType : char { MarketData, TimeAndSales, LimitOrderBook };
+struct DataRequestResult
 {
 	long RequestId;
+	DataRequestType Type;
 };
 
 //
@@ -157,12 +201,11 @@ public:
 	virtual void Connect(const ConnectInfo& connectInfo) = 0;
 	virtual ConnectionStatus GetConnectionStatus() = 0;
 	virtual void Disconnect() = 0;
-
-	virtual void GetStockContractCount(const ContractInfo& query, ContractQueryResult* result) = 0;
-	virtual void GetStockContracts(const ContractQueryResult& requestResult, ContractInfo *resultArray) = 0;
-
-	virtual void RequestMarketData(const MarketDataInfo& marketDataInfo, MarketDataRequestResult* result) = 0;
-	virtual void CancelMarketData(const MarketDataRequestResult& requestResult) = 0;
+	virtual void GetContractCount(const ContractInfo& query, ContractQueryResult* result) = 0;
+	virtual void GetContracts(const ContractQueryResult& requestResult, ContractInfo *resultArray) = 0;
+	virtual void RequestMarketData(const BaseMarketDataInfo& dataInfo, DataRequestResult* result) = 0;
+	virtual void RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, DataRequestResult* result) = 0;
+	virtual void CancelMarketData(const DataRequestResult& requestResult) = 0;
 
 	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) = 0;
 };

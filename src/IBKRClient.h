@@ -41,10 +41,11 @@ public:
 	virtual void Connect(const ConnectInfo& connectInfo) override;
 	virtual ConnectionStatus GetConnectionStatus() override;
 	virtual void Disconnect() override;
-	virtual void GetStockContractCount(const ContractInfo& query, ContractQueryResult* result) override;
-	virtual void GetStockContracts(const ContractQueryResult& requestResult, ContractInfo* resultArray) override;
-	virtual void RequestMarketData(const MarketDataInfo& marketDataInfo, MarketDataRequestResult* result) override;
-	virtual void CancelMarketData(const MarketDataRequestResult& requestResult) override;
+	virtual void GetContractCount(const ContractInfo& query, ContractQueryResult* result) override;
+	virtual void GetContracts(const ContractQueryResult& requestResult, ContractInfo* resultArray) override;
+	virtual void RequestMarketData(const BaseMarketDataInfo& dataInfo, DataRequestResult* result) override;
+	virtual void RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, DataRequestResult* result) override;
+	virtual void CancelMarketData(const DataRequestResult& requestResult) override;
 	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) override;
 
 	// EWrapper implementations
@@ -147,6 +148,9 @@ public:
 	virtual void completedOrdersEnd() override;
 
 private:
+	// Converts UNIX time to a human-readable string
+	std::string FromUNIXTimeToString(time_t time);
+
 	// A message listening loop that runs in a separate thread
 	void MessageListeningLoop();
 
@@ -210,9 +214,10 @@ private:
 
 	// Requesting market data
 	long mMarketDataRequestId;
-	std::unordered_map<int, ReceiveMarketDataFunction*> mRequestId_To_ReceiveMarketDataFunc;
+	std::unordered_map<int, ReceivePriceSizeDataFunction*> mRequestId_To_ReceivePriceSizeFunc;
 	std::unordered_map<int, ReceiveVolumeDataFunction*> mRequestId_To_ReceiveVolumeFunc;
 	std::unordered_map<int, ReceivePriceDataFunction*> mRequestId_To_ReceivePriceFunc;
+	std::unordered_map<int, ReceiveTimeAndSalesDataFunction*> mRequestId_To_ReceiveTimeAndSalesFunc;
 	std::unordered_map<int, void*> mRequestId_To_ReceiveObject;
 	std::unordered_map<long, std::unordered_map<ReceiveMarketDataType, std::pair<double, int>>> mRequestIdDataType_To_PriceSize;
 	std::unordered_map<long, int> mRequestId_To_Volume;

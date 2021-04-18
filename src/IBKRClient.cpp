@@ -487,6 +487,35 @@ void IBKRClient::FromContractInfoToContract(Contract& contractOut, const Contrac
     contractOut.symbol = contractInfoIn.Symbol;
     contractOut.currency = contractInfoIn.Currency;
     contractOut.exchange = contractInfoIn.Exchange;
+
+    // The security's type:
+    // STK - stock (or ETF)
+    // OPT - option
+    // FUT - future
+    // IND - index
+    // FOP - futures option
+    // CASH - forex pair
+    // BAG - combo
+    // WAR - warrant
+    // BOND- bond
+    // CMDTY- commodity
+    // NEWS- news
+    // FUND- mutual fund
+    switch (contractInfoIn.Type)
+    {
+    case SecurityType::Stock:
+        contractOut.secType = "STK";
+        break;
+
+    case SecurityType::Future:
+        contractOut.secType = "FUT";
+        contractOut.lastTradeDateOrContractMonth = std::string(contractInfoIn.Future.ExpiryDate, 8);
+        break;
+
+    case SecurityType::Option:
+        contractOut.secType = "OPT";
+        break;
+    }
 }
 
 void IBKRClient::FromContractDetailsToContractInfo(ContractInfo& contractInfoOut, const ContractDetails& contractDetailsIn)
@@ -494,15 +523,26 @@ void IBKRClient::FromContractDetailsToContractInfo(ContractInfo& contractInfoOut
     strcpy_s(contractInfoOut.Symbol, contractDetailsIn.contract.symbol.c_str());
     strcpy_s(contractInfoOut.Exchange, contractDetailsIn.contract.exchange.c_str());
     strcpy_s(contractInfoOut.Currency, contractDetailsIn.contract.currency.c_str());
+
+    if (contractDetailsIn.contract.secType.compare("STK") == 0)
+    {
+        contractInfoOut.Type = SecurityType::Stock;
+    }
+    if (contractDetailsIn.contract.secType.compare("FUT") == 0)
+    {
+        contractInfoOut.Type = SecurityType::Future;
+        memcpy(contractInfoOut.Future.ExpiryDate, contractDetailsIn.contract.lastTradeDateOrContractMonth.data(), 8);
+    }
+    if (contractDetailsIn.contract.secType.compare("OPT") == 0)
+    {
+        contractInfoOut.Type = SecurityType::Option;
+    }
 }
 
-void IBKRClient::GetStockContractCount(const ContractInfo& query, ContractQueryResult* result)
+void IBKRClient::GetContractCount(const ContractInfo& query, ContractQueryResult* result)
 {
     Contract contract;
-    contract.symbol = query.Symbol;
-    contract.secType = "STK";
-    contract.currency = query.Currency;
-    contract.exchange = query.Exchange;
+    FromContractInfoToContract(contract, query);
     mClientSocketPtr->reqContractDetails(mContractRequestId, contract);
 
     // Wait until the data is received
@@ -533,7 +573,7 @@ void IBKRClient::GetStockContractCount(const ContractInfo& query, ContractQueryR
     mContractRequestConditionVariable.notify_one();
 }
 
-void IBKRClient::GetStockContracts(const ContractQueryResult& requestResult, ContractInfo* resultArray)
+void IBKRClient::GetContracts(const ContractQueryResult& requestResult, ContractInfo* resultArray)
 {
     if (requestResult.Status == ResultStatus::Success)
     {
@@ -548,7 +588,7 @@ void IBKRClient::GetStockContracts(const ContractQueryResult& requestResult, Con
     mRequestId_To_ContractRequestResponse[requestResult.RequestId].Reset();
 }
 
-void IBKRClient::RequestMarketData(const MarketDataInfo& marketDataInfo, MarketDataRequestResult* result)
+void IBKRClient::RequestMarketData(const BaseMarketDataInfo& marketDataInfo, DataRequestResult* result)
 {
     std::string logMsg = std::string((std::string)"Market data request submitted for: " +
         marketDataInfo.ConInfoPtr->ToShortString()) +
@@ -571,22 +611,66 @@ void IBKRClient::RequestMarketData(const MarketDataInfo& marketDataInfo, MarketD
 
     // Fill the return structure
     result->RequestId = mMarketDataRequestId;
+    result->Type = DataRequestType::MarketData;
 
     // Save the receive function and object
-    mRequestId_To_ReceiveMarketDataFunc[mMarketDataRequestId] = marketDataInfo.ReceiveMarketDataFunctionPtr;
+    mRequestId_To_ReceivePriceSizeFunc[mMarketDataRequestId] = marketDataInfo.ReceivePriceSizeDataFunctionPtr;
     mRequestId_To_ReceiveVolumeFunc[mMarketDataRequestId] = marketDataInfo.ReceiveVolumeDataFunctionPtr;
     mRequestId_To_ReceivePriceFunc[mMarketDataRequestId] = marketDataInfo.ReceivePriceDataFunctionPtr;
-    mRequestId_To_ReceiveObject[mMarketDataRequestId] = marketDataInfo.ReceiveMarketDataObjectPtr;
+    mRequestId_To_ReceiveObject[mMarketDataRequestId] = marketDataInfo.ReceiveBaseMarketDataObjectPtr;
 
     // Increase the request id for future requests
     ++mMarketDataRequestId;
 }
 
-void IBKRClient::CancelMarketData(const MarketDataRequestResult& requestResult)
+void IBKRClient::RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, DataRequestResult* result)
 {
-    std::string logMsg = std::string((std::string)"Market data cancellation submitted. Request Id: " + std::to_string(requestResult.RequestId));
+    std::string logMsg = std::string((std::string)"Time and Sales data request submitted for: " +
+        dataInfo.ConInfoPtr->ToShortString()) +
+        " Request Id: " + std::to_string(mMarketDataRequestId);
     mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
-    mClientSocketPtr->cancelMktData(requestResult.RequestId);
+
+    // Set the contract info
+    Contract contract;
+    FromContractInfoToContract(contract, *dataInfo.ConInfoPtr);
+
+    // Request the data
+    mClientSocketPtr->reqTickByTickData(mMarketDataRequestId, contract, "AllLast", 0, false);
+
+    // Fill the return structure
+    result->RequestId = mMarketDataRequestId;
+    result->Type = DataRequestType::TimeAndSales;
+
+    //// Save the receive function and object
+    mRequestId_To_ReceiveTimeAndSalesFunc[mMarketDataRequestId] = dataInfo.ReceiveTimeAndSalesDataFunctionPtr;
+    mRequestId_To_ReceiveObject[mMarketDataRequestId] = dataInfo.ReceiveTimeAndSalesDataObjectPtr;
+
+    // Increase the request id for future requests
+    ++mMarketDataRequestId;
+}
+
+void IBKRClient::CancelMarketData(const DataRequestResult& requestResult)
+{
+    std::string logMsg;
+
+    switch (requestResult.Type)
+    {
+    case DataRequestType::MarketData:
+        logMsg = std::string((std::string)"Market data cancelled. Request Id: " + std::to_string(requestResult.RequestId));
+        mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+        mClientSocketPtr->cancelMktData(requestResult.RequestId);
+        break;
+
+    case DataRequestType::TimeAndSales:
+        logMsg = std::string((std::string)"Time&Sales data cancelled. Request Id: " + std::to_string(requestResult.RequestId));
+        mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+        mClientSocketPtr->cancelTickByTickData(requestResult.RequestId);
+        break;
+
+    case DataRequestType::LimitOrderBook:
+        //mClientSocketPtr->cancelMktData(requestResult.RequestId);
+        break;
+    }
 }
 
 void IBKRClient::PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result)
@@ -744,8 +828,8 @@ void IBKRClient::tickSize(TickerId tickerId, TickType field, int size)
         marketDataType = ReceiveMarketDataType::Ask;
         mRequestIdDataType_To_PriceSize[tickerId][marketDataType].second = size;
         price = mRequestIdDataType_To_PriceSize[tickerId][marketDataType].first;
-        if (mRequestId_To_ReceiveMarketDataFunc[tickerId])
-            mRequestId_To_ReceiveMarketDataFunc[tickerId](receiveObj, tickerId, marketDataType, price, size);
+        if (mRequestId_To_ReceivePriceSizeFunc[tickerId])
+            mRequestId_To_ReceivePriceSizeFunc[tickerId](receiveObj, tickerId, marketDataType, price, size);
         break;
 
     case TickType::BID:
@@ -755,8 +839,8 @@ void IBKRClient::tickSize(TickerId tickerId, TickType field, int size)
         marketDataType = ReceiveMarketDataType::Bid;
         mRequestIdDataType_To_PriceSize[tickerId][marketDataType].second = size;
         price = mRequestIdDataType_To_PriceSize[tickerId][marketDataType].first;
-        if (mRequestId_To_ReceiveMarketDataFunc[tickerId])
-            mRequestId_To_ReceiveMarketDataFunc[tickerId](receiveObj, tickerId, marketDataType, price, size);
+        if (mRequestId_To_ReceivePriceSizeFunc[tickerId])
+            mRequestId_To_ReceivePriceSizeFunc[tickerId](receiveObj, tickerId, marketDataType, price, size);
         break;
 
     case TickType::LAST:
@@ -766,8 +850,8 @@ void IBKRClient::tickSize(TickerId tickerId, TickType field, int size)
         marketDataType = ReceiveMarketDataType::Last;
         mRequestIdDataType_To_PriceSize[tickerId][marketDataType].second = size;
         price = mRequestIdDataType_To_PriceSize[tickerId][marketDataType].first;
-        if (mRequestId_To_ReceiveMarketDataFunc[tickerId])
-            mRequestId_To_ReceiveMarketDataFunc[tickerId](receiveObj, tickerId, marketDataType, price, size);
+        if (mRequestId_To_ReceivePriceSizeFunc[tickerId])
+            mRequestId_To_ReceivePriceSizeFunc[tickerId](receiveObj, tickerId, marketDataType, price, size);
         break;
 
     case TickType::VOLUME:
@@ -804,15 +888,7 @@ void IBKRClient::tickString(TickerId tickerId, TickType tickType, const std::str
         tickType == TickType::DELAYED_LAST_TIMESTAMP)
     {
         long long timeVal = std::stoll(value);
-        struct tm timeStruct;
-        gmtime_s(&timeStruct , &timeVal);
-        valueStr = 
-            std::to_string(timeStruct.tm_year + 1900) + "-" +
-            std::to_string(timeStruct.tm_mon + 1) + "-" +
-            std::to_string(timeStruct.tm_mday) + "_" +
-            std::to_string(timeStruct.tm_hour) + ":" +
-            std::to_string(timeStruct.tm_min) + ":" +
-            std::to_string(timeStruct.tm_sec);
+        valueStr = FromUNIXTimeToString(timeVal);
     }
 
     std::string logMsg = std::string(
@@ -1189,26 +1265,87 @@ void IBKRClient::pnlSingle(int reqId, int pos, double dailyPnL, double unrealize
 
 void IBKRClient::historicalTicks(int reqId, const std::vector<HistoricalTick>& ticks, bool done)
 {
+    std::string logMsg = std::string(
+        (std::string)"Tick-By-Tick. ReqId: " + std::to_string(reqId) +
+        (std::string)", TickType: Historical" +
+        (std::string)", NumberOfTicks: " + std::to_string(ticks.size()) +
+        (std::string)", Done: " + (done ? "True" : "False"));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 }
 
 void IBKRClient::historicalTicksBidAsk(int reqId, const std::vector<HistoricalTickBidAsk>& ticks, bool done)
 {
+    std::string logMsg = std::string(
+        (std::string)"Tick-By-Tick. ReqId: " + std::to_string(reqId) +
+        (std::string)", TickType: BidAskHistorical" +
+        (std::string)", NumberOfTicks: " + std::to_string(ticks.size()) +
+        (std::string)", Done: " + (done ? "True" : "False"));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 }
 
 void IBKRClient::historicalTicksLast(int reqId, const std::vector<HistoricalTickLast>& ticks, bool done)
 {
+    std::string logMsg = std::string(
+        (std::string)"Tick-By-Tick. ReqId: " + std::to_string(reqId) +
+        (std::string)", TickType: LastHistorical" +
+        (std::string)", NumberOfTicks: " + std::to_string(ticks.size()) +
+        (std::string)", Done: " + (done ? "True" : "False"));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 }
 
 void IBKRClient::tickByTickAllLast(int reqId, int tickType, time_t time, double price, int size, const TickAttribLast& tickAttribLast, const std::string& exchange, const std::string& specialConditions)
 {
+    std::string logMsg = std::string(
+        (std::string)"Tick-By-Tick. ReqId: " + std::to_string(reqId) +
+        (std::string)", TickType: " + (tickType == 1 ? "Last" : "AllLast") +
+        (std::string)", Time: " + FromUNIXTimeToString(time) +
+        (std::string)", Price: " + std::to_string(price) +
+        (std::string)", Size: " + std::to_string(size) +
+        (std::string)", PastLimit: " + std::to_string(tickAttribLast.pastLimit) +
+        (std::string)", Unreported: " + std::to_string(tickAttribLast.unreported) +
+        (std::string)", Exchange: " + exchange +
+        (std::string)", SpecialConditions: " + specialConditions);
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    void* obj = mRequestId_To_ReceiveObject[mMarketDataRequestId];
+    ReceiveTimeAndSalesType type = ReceiveTimeAndSalesType::Unknown;
+    if (price <= mRequestIdDataType_To_PriceSize[reqId][ReceiveMarketDataType::Bid].first)
+    {
+        type = ReceiveTimeAndSalesType::Sell;
+    }
+    else if (price >= mRequestIdDataType_To_PriceSize[reqId][ReceiveMarketDataType::Ask].first)
+    {
+        type = ReceiveTimeAndSalesType::Buy;
+    }
+    mRequestId_To_ReceiveTimeAndSalesFunc[reqId](obj, reqId, time, type, price, size);
 }
 
 void IBKRClient::tickByTickBidAsk(int reqId, time_t time, double bidPrice, double askPrice, int bidSize, int askSize, const TickAttribBidAsk& tickAttribBidAsk)
 {
+    std::string logMsg = std::string(
+        (std::string)"Tick-By-Tick. ReqId: " + std::to_string(reqId) +
+        (std::string)", TickType: BidAsk" +
+        (std::string)", Time: " + FromUNIXTimeToString(time) +
+        (std::string)", BidPrice: " + std::to_string(bidPrice) +
+        (std::string)", AskPrice: " + std::to_string(askPrice) +
+        (std::string)", BidSize: " + std::to_string(bidSize) +
+        (std::string)", AskSize: " + std::to_string(askSize) +
+        (std::string)", BidPastLow: " + std::to_string(tickAttribBidAsk.bidPastLow) +
+        (std::string)", AskPastHigh: " + std::to_string(tickAttribBidAsk.askPastHigh));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    mRequestIdDataType_To_PriceSize[reqId][ReceiveMarketDataType::Bid] = { bidPrice , bidSize };
+    mRequestIdDataType_To_PriceSize[reqId][ReceiveMarketDataType::Ask] = { askPrice , askSize };
 }
 
 void IBKRClient::tickByTickMidPoint(int reqId, time_t time, double midPoint)
 {
+    std::string logMsg = std::string(
+        (std::string)"Tick-By-Tick. ReqId: " + std::to_string(reqId) +
+        (std::string)", TickType: MidPoint" +
+        (std::string)", Time: " + FromUNIXTimeToString(time) +
+        (std::string)", MidPoint: " + std::to_string(midPoint));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 }
 
 void IBKRClient::orderBound(long long orderId, int apiClientId, int apiOrderId)
@@ -1221,6 +1358,21 @@ void IBKRClient::completedOrder(const Contract& contract, const Order& order, co
 
 void IBKRClient::completedOrdersEnd()
 {
+}
+
+std::string IBKRClient::FromUNIXTimeToString(time_t time)
+{
+    struct tm timeStruct;
+    gmtime_s(&timeStruct, &time);
+    std::string valueStr =
+        std::to_string(timeStruct.tm_year + 1900) + "-" +
+        std::to_string(timeStruct.tm_mon + 1) + "-" +
+        std::to_string(timeStruct.tm_mday) + "_" +
+        std::to_string(timeStruct.tm_hour) + ":" +
+        std::to_string(timeStruct.tm_min) + ":" +
+        std::to_string(timeStruct.tm_sec);
+
+    return valueStr;
 }
 
 void IBKRClient::MessageListeningLoop()
