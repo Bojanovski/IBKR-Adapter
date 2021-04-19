@@ -9,11 +9,70 @@
 #include <iostream>
 #include <memory>
 #include <atomic>
+#include <fstream>
 
 using namespace std;
 
+class Writer
+{
+public:
+	Writer()
+		: mReady(true)
+		, mMaxLine(10)
+		, mCurrentLine(0)
+	{
+		mToWrite.resize(mMaxLine);
+	}
+
+	~Writer()
+	{
+		if (mFileWritingThread && mFileWritingThread->joinable())
+		{
+			mFileWritingThread->join();
+		}
+	}
+
+	void Add(const std::string& str)
+	{
+		while (!mReady);
+		mToWrite[mCurrentLine] = str;
+
+		++mCurrentLine;
+		if (mCurrentLine >= mMaxLine)
+		{
+			mReady = false;
+			mCurrentLine = 0;
+
+			if (mFileWritingThread && mFileWritingThread->joinable()) mFileWritingThread->join();
+			mFileWritingThread = std::make_unique<std::thread>([this]
+				{
+					std::ofstream outfile;
+					outfile.open("output.txt", std::ios_base::app); // append instead of overwrite
+					for (int i = 0; i < mMaxLine; ++i)
+					{
+						outfile << mToWrite[i] << endl;
+						mToWrite[i].clear();
+					}
+					outfile.close();
+					mReady = true;
+				});
+		}
+	}
+
+private:
+	std::atomic<bool> mReady;
+	std::vector<std::string> mToWrite;
+	const int mMaxLine;
+	int mCurrentLine;
+	std::unique_ptr<std::thread> mFileWritingThread;
+};
+
+Writer gWriter;
+
 void logFunc(void* obj, LogType type, const char *str)
 {
+	if (type == LogType::Debug) return;
+
 	std::string typeStr = "";
 	switch (type)
 	{
@@ -109,6 +168,44 @@ void receiveTimeAndSalesDataFunc(void* obj, int requestId, time_t time, ReceiveT
 	cout << "+++++++++++++++++++++++ Request Id: " << requestId << " - " << typeStr << ": " << price << endl;
 }
 
+void receiveLimitOrderBookOperationDataFunc(void* obj, int requestId, int position, int MMId, int operation, int side, double price, int size)
+{
+	auto now = std::chrono::system_clock::now();
+	time_t tt = std::chrono::system_clock::to_time_t(now);
+
+	auto duration = now.time_since_epoch();
+	auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() % 1000;
+
+	struct tm timeStruct;
+	gmtime_s(&timeStruct, &tt);
+	std::string timeStr =
+		std::to_string(timeStruct.tm_year + 1900) + "-" +
+		std::to_string(timeStruct.tm_mon + 1) + "-" +
+		std::to_string(timeStruct.tm_mday) + "_" +
+		std::to_string(timeStruct.tm_hour) + ":" +
+		std::to_string(timeStruct.tm_min) + ":" +
+		std::to_string(timeStruct.tm_sec) + ":" +
+		std::to_string(millis);
+
+	std::string str = timeStr + "," +
+		std::to_string(position) + "," +
+		std::to_string(operation) + "," +
+		std::to_string(side) + "," +
+		std::to_string(price) + "," +
+		std::to_string(size);
+	gWriter.Add(str);
+}
+
+void receiveLimitOrderBookDataFunc(void* obj, int requestId, int depth, LimitOrderBookEntry* askArray, LimitOrderBookEntry* bidArray)
+{
+	cout << "-----------------------------------" << endl;
+	for (int i = 0; i < depth; ++i)
+	{
+		cout << bidArray[i].Price << "  " << bidArray[i].Size << "  |  " << askArray[i].Price << "  " << askArray[i].Size << endl;
+	}
+	cout << "-----------------------------------" << endl;
+}
+
 void connectCallback(ConnectResult result)
 {
 	auto continue_thread = static_cast<std::atomic<bool> *>(result.CallbackObject);
@@ -167,8 +264,9 @@ int main()
 			cout << "   2 <quantity>	- buy" << endl;
 			cout << "   3				- get data" << endl;
 			cout << "   4				- get time and sales" << endl;
-			cout << "   5				- cancel get data" << endl;
-			cout << "   6				- exit" << endl;
+			cout << "   5				- get limit order book" << endl;
+			cout << "   6				- cancel get data" << endl;
+			cout << "   7				- exit" << endl;
 
 			cin >> inChoice;
 			bool breakLoop = true;
@@ -228,8 +326,17 @@ int main()
 				impl->RequestTimeAndSalesData(info, &result);
 			}
 			break;
-			
+
 			case 5:
+			{
+				breakLoop = false;
+				LimitOrderBookDataInfo info = { &contractInfo, 10, &receiveLimitOrderBookOperationDataFunc, &receiveLimitOrderBookDataFunc, nullptr };
+				result = DataRequestResult();
+				impl->RequestLimitOrderBookData(info, &result);
+			}
+			break;
+			
+			case 6:
 			{
 				breakLoop = false;
 				impl->CancelMarketData(result);

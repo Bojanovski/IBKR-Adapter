@@ -8,6 +8,7 @@
 #define MAX_SYMBOL_NAME 16
 #define MAX_EXCHANGE_NAME 16
 #define MAX_CURRENCY_NAME 8
+#define MAX_MARKET_MAKER_NAME 8
 
 #include <string>
 #include <cstring>
@@ -162,6 +163,22 @@ struct TimeAndSalesDataInfo
 	ReceiveTimeAndSalesDataFunction* ReceiveTimeAndSalesDataFunctionPtr;
 	void* ReceiveTimeAndSalesDataObjectPtr;
 };
+struct LimitOrderBookEntry
+{
+	double Price;
+	int Size;
+	int MMId; // market maker Id
+};
+typedef void ReceiveLimitOrderBookOperationDataFunc(void* obj, int requestId, int position, int MMId, int operation, int side, double price, int size);
+typedef void ReceiveLimitOrderBookDataFunc(void* obj, int requestId, int depth, LimitOrderBookEntry* askArray, LimitOrderBookEntry* bidArray);
+struct LimitOrderBookDataInfo
+{
+	const ContractInfo* ConInfoPtr;
+	int Depth;
+	ReceiveLimitOrderBookOperationDataFunc* LOBDataOperationFunctionPtr;
+	ReceiveLimitOrderBookDataFunc* LOBDataFunctionPtr;
+	void* LOBDataObjectPtr;
+};
 enum class DataRequestType : char { MarketData, TimeAndSales, LimitOrderBook };
 struct DataRequestResult
 {
@@ -205,6 +222,8 @@ public:
 	virtual void GetContracts(const ContractQueryResult& requestResult, ContractInfo *resultArray) = 0;
 	virtual void RequestMarketData(const BaseMarketDataInfo& dataInfo, DataRequestResult* result) = 0;
 	virtual void RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, DataRequestResult* result) = 0;
+	virtual void RequestLimitOrderBookData(const LimitOrderBookDataInfo& dataInfo, DataRequestResult* result) = 0;
+	virtual void GetMarketMakerName(const DataRequestResult& requestResult, int MMId, char* nameDest, int *nameSize) = 0;
 	virtual void CancelMarketData(const DataRequestResult& requestResult) = 0;
 
 	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) = 0;

@@ -45,6 +45,8 @@ public:
 	virtual void GetContracts(const ContractQueryResult& requestResult, ContractInfo* resultArray) override;
 	virtual void RequestMarketData(const BaseMarketDataInfo& dataInfo, DataRequestResult* result) override;
 	virtual void RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, DataRequestResult* result) override;
+	virtual void RequestLimitOrderBookData(const LimitOrderBookDataInfo& dataInfo, DataRequestResult* result) override;
+	virtual void GetMarketMakerName(const DataRequestResult& requestResult, int MMId, char *nameDest, int *nameSize) override;
 	virtual void CancelMarketData(const DataRequestResult& requestResult) override;
 	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) override;
 
@@ -212,14 +214,43 @@ private:
 	};
 	std::unordered_map<ContractInfo, long, ContractInfoHashFunction> ContractInfo_To_ContractId;
 
+	// Limit Order Book
+	struct LimitOrderBook
+	{
+		struct Side
+		{
+			typedef LimitOrderBookEntry Entry;
+			std::vector<Entry> Entries;
+		} Bid, Ask;
+
+		LimitOrderBook(int supportedDepth);		
+		const Side::Entry *PerformOperation(int position, const std::string& marketMaker, int operation, int side, double price, int size);
+
+		std::unordered_map<int, std::string> MMId_To_Name;
+		std::unordered_map<std::string, int> MMName_To_Id;
+		int MMCount = 1;
+		const int Depth;
+	};
+
+	//
 	// Requesting market data
+	//
 	long mMarketDataRequestId;
-	std::unordered_map<int, ReceivePriceSizeDataFunction*> mRequestId_To_ReceivePriceSizeFunc;
-	std::unordered_map<int, ReceiveVolumeDataFunction*> mRequestId_To_ReceiveVolumeFunc;
-	std::unordered_map<int, ReceivePriceDataFunction*> mRequestId_To_ReceivePriceFunc;
-	std::unordered_map<int, ReceiveTimeAndSalesDataFunction*> mRequestId_To_ReceiveTimeAndSalesFunc;
-	std::unordered_map<int, void*> mRequestId_To_ReceiveObject;
+	std::unordered_map<long, void*> mRequestId_To_ReceiveObject;
+
+	// Base Market data
+	std::unordered_map<long, ReceivePriceSizeDataFunction*> mRequestId_To_ReceivePriceSizeFunc;
+	std::unordered_map<long, ReceiveVolumeDataFunction*> mRequestId_To_ReceiveVolumeFunc;
+	std::unordered_map<long, ReceivePriceDataFunction*> mRequestId_To_ReceivePriceFunc;
 	std::unordered_map<long, std::unordered_map<ReceiveMarketDataType, std::pair<double, int>>> mRequestIdDataType_To_PriceSize;
 	std::unordered_map<long, int> mRequestId_To_Volume;
 	std::unordered_map<long, std::unordered_map<ReceivePriceDataType, double>> mRequestIdPriceType_To_Price;
+
+	// Time and Sales data
+	std::unordered_map<long, ReceiveTimeAndSalesDataFunction*> mRequestId_To_ReceiveTimeAndSalesFunc;
+
+	// LOB data
+	std::unordered_map<long, std::unique_ptr<LimitOrderBook>> mRequestId_To_LOB;
+	std::unordered_map<long, ReceiveLimitOrderBookOperationDataFunc*> mRequestId_To_ReceiveLOBOperationFunc;
+	std::unordered_map<long, ReceiveLimitOrderBookDataFunc*> mRequestId_To_ReceiveLOBFunc;
 };

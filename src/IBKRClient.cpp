@@ -649,6 +649,45 @@ void IBKRClient::RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, D
     ++mMarketDataRequestId;
 }
 
+void IBKRClient::RequestLimitOrderBookData(const LimitOrderBookDataInfo& dataInfo, DataRequestResult* result)
+{
+    std::string logMsg = std::string((std::string)"Limit Order Book data request submitted for: " +
+        dataInfo.ConInfoPtr->ToShortString()) +
+        " Request Id: " + std::to_string(mMarketDataRequestId);
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    // Set the contract info
+    Contract contract;
+    FromContractInfoToContract(contract, *dataInfo.ConInfoPtr);
+
+    // Request the data
+    mClientSocketPtr->reqMktDepth(mMarketDataRequestId, contract, dataInfo.Depth, true, TagValueListSPtr());
+
+    // Fill the return structure
+    result->RequestId = mMarketDataRequestId;
+    result->Type = DataRequestType::LimitOrderBook;
+
+    //// Save the receive function and object
+    mRequestId_To_ReceiveLOBOperationFunc[mMarketDataRequestId] = dataInfo.LOBDataOperationFunctionPtr;
+    mRequestId_To_ReceiveLOBFunc[mMarketDataRequestId] = dataInfo.LOBDataFunctionPtr;
+    mRequestId_To_ReceiveObject[mMarketDataRequestId] = dataInfo.LOBDataObjectPtr;
+
+    // Initialize the structure
+    mRequestId_To_LOB[mMarketDataRequestId] = std::make_unique<LimitOrderBook>(dataInfo.Depth);
+
+    // Increase the request id for future requests
+    ++mMarketDataRequestId;
+}
+
+void IBKRClient::GetMarketMakerName(const DataRequestResult& requestResult, int MMId, char* nameDest, int *nameSize)
+{
+    LimitOrderBook* lobPtr = mRequestId_To_LOB[requestResult.RequestId].get();
+    std::string name = lobPtr->MMId_To_Name[MMId];
+    *nameSize = (int)name.size();
+    assert(*nameSize <= MAX_MARKET_MAKER_NAME);
+    memcpy(nameDest, name.c_str(), *nameSize);
+}
+
 void IBKRClient::CancelMarketData(const DataRequestResult& requestResult)
 {
     std::string logMsg;
@@ -668,9 +707,24 @@ void IBKRClient::CancelMarketData(const DataRequestResult& requestResult)
         break;
 
     case DataRequestType::LimitOrderBook:
-        //mClientSocketPtr->cancelMktData(requestResult.RequestId);
+        logMsg = std::string((std::string)"Limit Order Book data cancelled. Request Id: " + std::to_string(requestResult.RequestId));
+        mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+        mClientSocketPtr->cancelMktDepth(requestResult.RequestId, true);
         break;
     }
+
+    // Erase all records to save memory
+    //mRequestId_To_ReceiveObject.erase(requestResult.RequestId);
+    //mRequestId_To_ReceivePriceSizeFunc.erase(requestResult.RequestId);
+    //mRequestId_To_ReceiveVolumeFunc.erase(requestResult.RequestId);
+    //mRequestId_To_ReceivePriceFunc.erase(requestResult.RequestId);
+    //mRequestIdDataType_To_PriceSize.erase(requestResult.RequestId);
+    //mRequestId_To_Volume.erase(requestResult.RequestId);
+    //mRequestIdPriceType_To_Price.erase(requestResult.RequestId);
+    //mRequestId_To_ReceiveTimeAndSalesFunc.erase(requestResult.RequestId);
+    //mRequestId_To_LOB.erase(requestResult.RequestId);
+    //mRequestId_To_ReceiveLOBOperationFunc.erase(requestResult.RequestId);
+    //mRequestId_To_ReceiveLOBFunc.erase(requestResult.RequestId);
 }
 
 void IBKRClient::PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result)
@@ -1014,12 +1068,74 @@ void IBKRClient::error(int id, int errorCode, const std::string& errorString)
     mLogFunctionPtr(mLogObjectPtr, logType, errorString.c_str());
 }
 
+std::string LOB_OperationToStr(int operation)
+{
+    // Operation codes: insert(0), update(1) or remove(2)
+    std::string retStr;
+    if (operation == 0)         retStr = "Insert";
+    else if (operation == 1)    retStr = "Update";
+    else /*(operation == 2)*/   retStr = "Remove";
+    return retStr;
+}
+
+std::string LOB_SideToStr(int side)
+{
+    // Side codes: 0 for ask, 1 for bid
+    std::string retStr;
+    if (side == 0)         retStr = "Ask";
+    else if (side == 1)    retStr = "Bid";
+    return retStr;
+}
+
 void IBKRClient::updateMktDepth(TickerId id, int position, int operation, int side, double price, int size)
 {
+    std::string logMsg = std::string(
+        (std::string)"UpdateMarketDepth. ReqId: " + std::to_string(id) +
+        (std::string)", Position: " + std::to_string(position) +
+        (std::string)", Operation: " + LOB_OperationToStr(operation) +
+        (std::string)", Side: " + LOB_SideToStr(side) +
+        (std::string)", Price: " + std::to_string(price) +
+        (std::string)", Size: " + std::to_string(size));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    LimitOrderBook* lobPtr = mRequestId_To_LOB[id].get();
+    const LimitOrderBook::Side::Entry* entry = lobPtr->PerformOperation(position, "UNKWN", operation, side, price, size);
+
+    void* obj = mRequestId_To_ReceiveObject[id];
+    if (mRequestId_To_ReceiveLOBOperationFunc[id])
+    {
+        mRequestId_To_ReceiveLOBOperationFunc[id](obj, id, position, entry->MMId, operation, side, price, size);
+    }
+    if (mRequestId_To_ReceiveLOBFunc[id])
+    {
+        mRequestId_To_ReceiveLOBFunc[id](obj, id, lobPtr->Depth, lobPtr->Ask.Entries.data(), lobPtr->Bid.Entries.data());
+    }
 }
 
 void IBKRClient::updateMktDepthL2(TickerId id, int position, const std::string& marketMaker, int operation, int side, double price, int size, bool isSmartDepth)
 {
+    std::string logMsg = std::string(
+        (std::string)"UpdateMarketDepth. ReqId: " + std::to_string(id) +
+        (std::string)", Position: " + std::to_string(position) +
+        (std::string)", Operation: " + LOB_OperationToStr(operation) +
+        (std::string)", Side: " + LOB_SideToStr(side) +
+        (std::string)", Price: " + std::to_string(price) +
+        (std::string)", Size: " + std::to_string(size) +
+        (std::string)", isSmartDepth: " + (isSmartDepth ? "True" : "False"));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    LimitOrderBook* lobPtr = mRequestId_To_LOB[id].get();
+    const LimitOrderBook::Side::Entry* entry = lobPtr->PerformOperation(position, marketMaker, operation, side, price, size);
+
+    void* obj = mRequestId_To_ReceiveObject[id];
+    if (mRequestId_To_ReceiveLOBOperationFunc[id])
+    {
+        mRequestId_To_ReceiveLOBOperationFunc[id](obj, id, position, entry->MMId, operation, side, price, size);
+    }
+    if (mRequestId_To_ReceiveLOBFunc[id])
+    {
+        mRequestId_To_ReceiveLOBFunc[id](obj, id, lobPtr->Depth, lobPtr->Ask.Entries.data(), lobPtr->Bid.Entries.data());
+    }
 }
 
 void IBKRClient::updateNewsBulletin(int msgId, int msgType, const std::string& newsMessage, const std::string& originExch)
@@ -1307,7 +1423,7 @@ void IBKRClient::tickByTickAllLast(int reqId, int tickType, time_t time, double 
         (std::string)", SpecialConditions: " + specialConditions);
     mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 
-    void* obj = mRequestId_To_ReceiveObject[mMarketDataRequestId];
+    void* obj = mRequestId_To_ReceiveObject[reqId];
     ReceiveTimeAndSalesType type = ReceiveTimeAndSalesType::Unknown;
     if (price <= mRequestIdDataType_To_PriceSize[reqId][ReceiveMarketDataType::Bid].first)
     {
@@ -1390,4 +1506,41 @@ void IBKRClient::ContractRequestResponse::Reset()
 {
     mIsDone = false;
     mReceivedContractInfos.clear();
+}
+
+IBKRClient::LimitOrderBook::LimitOrderBook(int supportedDepth)
+    : Depth(supportedDepth)
+{
+    Ask.Entries.resize(supportedDepth);
+    Bid.Entries.resize(supportedDepth);
+}
+
+const IBKRClient::LimitOrderBook::Side::Entry* IBKRClient::LimitOrderBook::PerformOperation(int position, const std::string& marketMaker, int operation, int side, double price, int size)
+{
+    LimitOrderBook::Side* sidePtr = (side == 0 ? &Ask : &Bid);
+    int MMId = MMName_To_Id[marketMaker];
+    if (MMId == 0)
+    {
+        MMName_To_Id[marketMaker] = MMId = MMCount;
+        MMId_To_Name[MMId] = marketMaker;
+        MMCount += 1;
+    }
+
+    LimitOrderBook::Side::Entry* entry = &sidePtr->Entries[position];
+    switch (operation)
+    {
+    case 0: // insert
+    case 1: // update
+        entry->Price = price;
+        entry->Size = size;
+        entry->MMId = MMId;
+        break;
+
+    case 2: // remove
+        entry->Price = price;
+        entry->Size = 0;
+        entry->MMId = -1;
+        break;
+    }
+    return entry;
 }
