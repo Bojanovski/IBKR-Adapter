@@ -9,6 +9,7 @@
 #define MAX_EXCHANGE_NAME 16
 #define MAX_CURRENCY_NAME 8
 #define MAX_MARKET_MAKER_NAME 8
+#define EXPIRY_DATE_SIZE 8
 
 #include <string>
 #include <cstring>
@@ -86,36 +87,22 @@ struct ConnectResult
 enum class SecurityType : char { Stock, Future, Option };
 struct ContractInfo
 {
+	SecurityType Type;
 	char Symbol[MAX_SYMBOL_NAME];
 	char Exchange[MAX_EXCHANGE_NAME];
 	char Currency[MAX_CURRENCY_NAME];
-	SecurityType Type;
-	union
-	{
-		struct
-		{
-			int StockData;
-		} Stock;
-		struct
-		{
-			char ExpiryDate[8];
-		} Future;
-		struct
-		{
-			int OptionData;
-		} Option;
-	};
+	char ExpiryDate[EXPIRY_DATE_SIZE];
 
 	std::string ToShortString() const 
 	{
-		std::string retVal = std::string(Exchange) + ":" + std::string(Symbol) + "(" + std::string(Currency);
+		std::string retVal = std::string(Symbol) + "@" + std::string(Exchange) + "(" + std::string(Currency);
 		switch (Type)
 		{
 		case SecurityType::Stock:
 			retVal += ",STK";
 			break;
 		case SecurityType::Future:
-			retVal += ",FUT," + std::string(Future.ExpiryDate, 8);
+			retVal += ",FUT," + std::string(ExpiryDate, EXPIRY_DATE_SIZE);
 			break;
 		case SecurityType::Option:
 			retVal += ",OPT";
@@ -220,7 +207,7 @@ public:
 	virtual void Disconnect() = 0;
 	virtual void GetContractCount(const ContractInfo& query, ContractQueryResult* result) = 0;
 	virtual void GetContracts(const ContractQueryResult& requestResult, ContractInfo *resultArray) = 0;
-	virtual void RequestMarketData(const BaseMarketDataInfo& dataInfo, DataRequestResult* result) = 0;
+	virtual void RequestBaseMarketData(const BaseMarketDataInfo& dataInfo, DataRequestResult* result) = 0;
 	virtual void RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, DataRequestResult* result) = 0;
 	virtual void RequestLimitOrderBookData(const LimitOrderBookDataInfo& dataInfo, DataRequestResult* result) = 0;
 	virtual void GetMarketMakerName(const DataRequestResult& requestResult, int MMId, char* nameDest, int *nameSize) = 0;

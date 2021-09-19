@@ -488,6 +488,17 @@ void IBKRClient::FromContractInfoToContract(Contract& contractOut, const Contrac
     contractOut.currency = contractInfoIn.Currency;
     contractOut.exchange = contractInfoIn.Exchange;
 
+    bool isValidExpDate = true;
+    for (int i = 0; i < EXPIRY_DATE_SIZE; ++i)
+    {
+        char c = contractInfoIn.ExpiryDate[i];
+        if (c < 48 || c > 57)
+        {
+            isValidExpDate = false;
+            break;
+        }
+    }
+
     // The security's type:
     // STK - stock (or ETF)
     // OPT - option
@@ -509,7 +520,14 @@ void IBKRClient::FromContractInfoToContract(Contract& contractOut, const Contrac
 
     case SecurityType::Future:
         contractOut.secType = "FUT";
-        contractOut.lastTradeDateOrContractMonth = std::string(contractInfoIn.Future.ExpiryDate, 8);
+        if (isValidExpDate)
+        {
+            contractOut.lastTradeDateOrContractMonth = std::string(contractInfoIn.ExpiryDate, EXPIRY_DATE_SIZE);
+        }
+        else
+        {
+            contractOut.lastTradeDateOrContractMonth = "";
+        }
         break;
 
     case SecurityType::Option:
@@ -531,7 +549,7 @@ void IBKRClient::FromContractDetailsToContractInfo(ContractInfo& contractInfoOut
     if (contractDetailsIn.contract.secType.compare("FUT") == 0)
     {
         contractInfoOut.Type = SecurityType::Future;
-        memcpy(contractInfoOut.Future.ExpiryDate, contractDetailsIn.contract.lastTradeDateOrContractMonth.data(), 8);
+        memcpy(contractInfoOut.ExpiryDate, contractDetailsIn.contract.lastTradeDateOrContractMonth.data(), 8);
     }
     if (contractDetailsIn.contract.secType.compare("OPT") == 0)
     {
@@ -588,7 +606,7 @@ void IBKRClient::GetContracts(const ContractQueryResult& requestResult, Contract
     mRequestId_To_ContractRequestResponse[requestResult.RequestId].Reset();
 }
 
-void IBKRClient::RequestMarketData(const BaseMarketDataInfo& marketDataInfo, DataRequestResult* result)
+void IBKRClient::RequestBaseMarketData(const BaseMarketDataInfo& marketDataInfo, DataRequestResult* result)
 {
     std::string logMsg = std::string((std::string)"Market data request submitted for: " +
         marketDataInfo.ConInfoPtr->ToShortString()) +
@@ -635,7 +653,7 @@ void IBKRClient::RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, D
     FromContractInfoToContract(contract, *dataInfo.ConInfoPtr);
 
     // Request the data
-    mClientSocketPtr->reqTickByTickData(mMarketDataRequestId, contract, "AllLast", 0, false);
+    mClientSocketPtr->reqTickByTickData(mMarketDataRequestId, contract, "Last", 0, false);
 
     // Fill the return structure
     result->RequestId = mMarketDataRequestId;

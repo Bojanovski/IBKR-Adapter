@@ -6,22 +6,66 @@
 #include "IBKRClient.h"
 
 #include <string>
+#include <sstream>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <atomic>
-#include <fstream>
 
 using namespace std;
+
+std::string GetCurrentDateStr()
+{
+	auto now = std::chrono::system_clock::now();
+	time_t tt = std::chrono::system_clock::to_time_t(now);
+
+	auto duration = now.time_since_epoch();
+	auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() % 1000;
+
+	struct tm timeStruct;
+	gmtime_s(&timeStruct, &tt);
+	std::stringstream ss;
+	ss << std::setw(4) << std::setfill('0') << std::to_string(timeStruct.tm_year + 1900) << "-";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_mon + 1) << "-";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_mday);
+	return ss.str();
+}
+
+std::string GetCurrentDateTimeStr()
+{
+	auto now = std::chrono::system_clock::now();
+	time_t tt = std::chrono::system_clock::to_time_t(now);
+
+	auto duration = now.time_since_epoch();
+	auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() % 1000;
+
+	struct tm timeStruct;
+	gmtime_s(&timeStruct, &tt);
+	std::stringstream ss;
+	ss << std::setw(4) << std::setfill('0') << std::to_string(timeStruct.tm_year + 1900) << "-";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_mon + 1) << "-";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_mday) << "_";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_hour) << ":";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_min) << ":";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_sec);// +":" +
+	//ss << std::setw(2) << std::setfill('0') << std::to_string(millis);
+	return ss.str();
+}
 
 class Writer
 {
 public:
 	Writer()
-		: mReady(true)
-		, mMaxLine(10)
+		: mMaxLine(100)
 		, mCurrentLine(0)
+		, mTotalLinesWritten(0)
+		, mState(State::Ping)
 	{
-		mToWrite.resize(mMaxLine);
+		mToWrite[(int)State::Ping].resize(mMaxLine);
+		mToWrite[(int)State::Pong].resize(mMaxLine);
+
+		SetContractName("UNKNOWN");
 	}
 
 	~Writer()
@@ -30,41 +74,75 @@ public:
 		{
 			mFileWritingThread->join();
 		}
+
+		// Just write whatever is left
+		if (!mOutFile.is_open())
+		{
+			mOutFile.open(mFileName, std::ios_base::app);
+		}
+		for (int i = 0; i < mCurrentLine; ++i)
+		{
+			mOutFile << mToWrite[(int)mState][i] << endl;
+			mToWrite[(int)mState][i].clear();
+		}
+		mOutFile.close();
+		mTotalLinesWritten += mCurrentLine;
+		cout << "Lines written: " << mCurrentLine << ", total so far: " << mTotalLinesWritten  << endl;
+	}
+
+	void SetContractName(const std::string &contractName)
+	{
+		mContractName = contractName;
+		mFileName = mContractName + "_" + GetCurrentDateStr() + ".txt";
 	}
 
 	void Add(const std::string& str)
 	{
-		while (!mReady);
-		mToWrite[mCurrentLine] = str;
-
+		mMtx.lock();
+		mToWrite[(int)mState][mCurrentLine] = str;
 		++mCurrentLine;
+
 		if (mCurrentLine >= mMaxLine)
 		{
-			mReady = false;
+			State state = mState;
+			int linesToWrite = mCurrentLine;
+			mState = (State)(((int)mState + 1) % 2);
 			mCurrentLine = 0;
 
 			if (mFileWritingThread && mFileWritingThread->joinable()) mFileWritingThread->join();
-			mFileWritingThread = std::make_unique<std::thread>([this]
+			mFileWritingThread = std::make_unique<std::thread>([this, state, linesToWrite]()
 				{
-					std::ofstream outfile;
-					outfile.open("output.txt", std::ios_base::app); // append instead of overwrite
-					for (int i = 0; i < mMaxLine; ++i)
+					std::stringstream ss;
+					for (int i = 0; i < linesToWrite; ++i)
 					{
-						outfile << mToWrite[i] << endl;
-						mToWrite[i].clear();
+						ss << mToWrite[(int)state][i] << endl;
+						mToWrite[(int)state][i].clear();
 					}
-					outfile.close();
-					mReady = true;
+					if (!mOutFile.is_open())
+					{
+						mOutFile.open(mFileName, std::ios_base::app);
+					}
+					mOutFile << ss.str();
+					mTotalLinesWritten += linesToWrite;
+					cout << "Lines written: " << linesToWrite << ", total so far: " << mTotalLinesWritten << endl;
 				});
 		}
+
+		mMtx.unlock();
 	}
 
 private:
-	std::atomic<bool> mReady;
-	std::vector<std::string> mToWrite;
-	const int mMaxLine;
+	enum class State : char { Ping, Pong };
+	std::mutex mMtx;
+	State mState;
 	int mCurrentLine;
+	int mTotalLinesWritten;
+	std::vector<std::string> mToWrite[2];
+	const int mMaxLine;
 	std::unique_ptr<std::thread> mFileWritingThread;
+	std::string mContractName;
+	std::string mFileName;
+	std::ofstream mOutFile;
 };
 
 Writer gWriter;
@@ -115,12 +193,18 @@ void receiveMarketDataFunc(void* obj, int requestId, ReceiveMarketDataType type,
 		break;
 	}
 
-	cout << "+++++++++++++++++++++++ Request Id: " << requestId << " - " << typeStr << " - " << price << " : " << size << endl;
+	//cout << "+++++++++++++++++++++++ Request Id: " << requestId << " - " << typeStr << " - " << price << " : " << size << endl;
 }
 
 void receiveVolumeDataFunc(void* obj, int requestId, int size)
 {
-	cout << "+++++++++++++++++++++++ Request Id: " << requestId << " - " << "Daily Volume: " << size << endl;
+	std::string timeStr = GetCurrentDateTimeStr();
+	std::string str = "2," + // 2 for total daily volume
+		timeStr + "," +
+		std::to_string(size);
+	gWriter.Add(str);
+
+	//cout << "+++++++++++++++++++++++ Request Id: " << requestId << " - " << "Daily Volume: " << size << endl;
 }
 
 void receivePriceDataFunc(void* obj, int requestId, ReceivePriceDataType priceType, double price)
@@ -144,7 +228,7 @@ void receivePriceDataFunc(void* obj, int requestId, ReceivePriceDataType priceTy
 		break;
 	}
 
-	cout << "+++++++++++++++++++++++ Request Id: " << requestId << " - " << typeStr << ": " << price << endl;
+	//cout << "+++++++++++++++++++++++ Request Id: " << requestId << " - " << typeStr << ": " << price << endl;
 }
 
 void receiveTimeAndSalesDataFunc(void* obj, int requestId, time_t time, ReceiveTimeAndSalesType type, double price, int size)
@@ -165,29 +249,32 @@ void receiveTimeAndSalesDataFunc(void* obj, int requestId, time_t time, ReceiveT
 		break;
 	}
 
-	cout << "+++++++++++++++++++++++ Request Id: " << requestId << " - " << typeStr << ": " << price << endl;
+	struct tm timeStruct;
+	gmtime_s(&timeStruct, &time);
+	std::stringstream ss;
+	ss << std::setw(4) << std::setfill('0') << std::to_string(timeStruct.tm_year + 1900) << "-";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_mon + 1) << "-";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_mday) << "_";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_hour) << ":";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_min) << ":";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_sec);// +":" +
+	//ss << std::setw(2) << std::setfill('0') << std::to_string(millis);
+	std::string timeStr = ss.str();
+
+	std::string str = "0," + // 0 for time and sales
+		timeStr + "," +
+		std::to_string(price) + "," +
+		std::to_string(size);
+	gWriter.Add(str);
+
+	//cout << "+++++++++++++++++++++++ Request Id: " << requestId << " : " << price << " : " << size << endl;
 }
 
 void receiveLimitOrderBookOperationDataFunc(void* obj, int requestId, int position, int MMId, int operation, int side, double price, int size)
 {
-	auto now = std::chrono::system_clock::now();
-	time_t tt = std::chrono::system_clock::to_time_t(now);
-
-	auto duration = now.time_since_epoch();
-	auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count() % 1000;
-
-	struct tm timeStruct;
-	gmtime_s(&timeStruct, &tt);
-	std::string timeStr =
-		std::to_string(timeStruct.tm_year + 1900) + "-" +
-		std::to_string(timeStruct.tm_mon + 1) + "-" +
-		std::to_string(timeStruct.tm_mday) + "_" +
-		std::to_string(timeStruct.tm_hour) + ":" +
-		std::to_string(timeStruct.tm_min) + ":" +
-		std::to_string(timeStruct.tm_sec) + ":" +
-		std::to_string(millis);
-
-	std::string str = timeStr + "," +
+	std::string timeStr = GetCurrentDateTimeStr();
+	std::string str = "1," + // 1 for LOB
+		timeStr + "," +
 		std::to_string(position) + "," +
 		std::to_string(operation) + "," +
 		std::to_string(side) + "," +
@@ -198,12 +285,12 @@ void receiveLimitOrderBookOperationDataFunc(void* obj, int requestId, int positi
 
 void receiveLimitOrderBookDataFunc(void* obj, int requestId, int depth, LimitOrderBookEntry* askArray, LimitOrderBookEntry* bidArray)
 {
-	cout << "-----------------------------------" << endl;
+	//cout << "-----------------------------------" << endl;
 	for (int i = 0; i < depth; ++i)
 	{
-		cout << bidArray[i].Price << "  " << bidArray[i].Size << "  |  " << askArray[i].Price << "  " << askArray[i].Size << endl;
+		//cout << bidArray[i].Price << "  " << bidArray[i].Size << "  |  " << askArray[i].Price << "  " << askArray[i].Size << endl;
 	}
-	cout << "-----------------------------------" << endl;
+	//cout << "-----------------------------------" << endl;
 }
 
 void connectCallback(ConnectResult result)
@@ -282,7 +369,7 @@ int main()
 				query.Type = (SecurityType)type;
 
 				// Future specific stuff
-				memcpy(query.Future.ExpiryDate, "20210621", 8);
+				memcpy(query.ExpiryDate, "20210921", EXPIRY_DATE_SIZE);
 
 				strcpy_s(query.Symbol, sizeof(inStr.data()), inStr.data());
 				strcpy_s(query.Currency, sizeof("USD"), "USD");
@@ -294,6 +381,7 @@ int main()
 				impl->GetContracts(result, contracts.data());
 				contractInfo = contracts[0];
 				cout << "Selected contract: " << contractInfo.ToShortString() << endl;
+				gWriter.SetContractName(contractInfo.ToShortString());
 			}
 			break;
 
@@ -314,7 +402,7 @@ int main()
 				breakLoop = false;
 				BaseMarketDataInfo info = { &contractInfo, &receiveMarketDataFunc, &receiveVolumeDataFunc, &receivePriceDataFunc, nullptr };
 				result = DataRequestResult();
-				impl->RequestMarketData(info, &result);
+				impl->RequestBaseMarketData(info, &result);
 			}
 			break;
 

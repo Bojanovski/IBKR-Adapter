@@ -43,7 +43,7 @@ public:
 	virtual void Disconnect() override;
 	virtual void GetContractCount(const ContractInfo& query, ContractQueryResult* result) override;
 	virtual void GetContracts(const ContractQueryResult& requestResult, ContractInfo* resultArray) override;
-	virtual void RequestMarketData(const BaseMarketDataInfo& dataInfo, DataRequestResult* result) override;
+	virtual void RequestBaseMarketData(const BaseMarketDataInfo& dataInfo, DataRequestResult* result) override;
 	virtual void RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, DataRequestResult* result) override;
 	virtual void RequestLimitOrderBookData(const LimitOrderBookDataInfo& dataInfo, DataRequestResult* result) override;
 	virtual void GetMarketMakerName(const DataRequestResult& requestResult, int MMId, char *nameDest, int *nameSize) override;
