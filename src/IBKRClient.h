@@ -47,6 +47,7 @@ public:
 	virtual void RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, DataRequestResult* result) override;
 	virtual void RequestLimitOrderBookData(const LimitOrderBookDataInfo& dataInfo, DataRequestResult* result) override;
 	virtual void GetMarketMakerName(const DataRequestResult& requestResult, int MMId, char *nameDest, int *nameSize) override;
+	virtual void RequestHistoricalData(const HistoricalDataInfo& dataInfo, DataRequestResult* result) override;
 	virtual void CancelMarketData(const DataRequestResult& requestResult) override;
 	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) override;
 
@@ -164,6 +165,7 @@ private:
 
 	void FromContractInfoToContract(Contract& contractOut, const ContractInfo& contractInfoIn);
 	void FromContractDetailsToContractInfo(ContractInfo& contractInfoOut, const ContractDetails& contractDetailsIn);
+	void FromBarToHistoricalBarEntry(HistoricalBarEntry& historicalBarEntry, const Bar& bar);
 
 private:
 	EReaderOSSignal mOSSignal;
@@ -253,4 +255,7 @@ private:
 	std::unordered_map<long, std::unique_ptr<LimitOrderBook>> mRequestId_To_LOB;
 	std::unordered_map<long, ReceiveLimitOrderBookOperationDataFunc*> mRequestId_To_ReceiveLOBOperationFunc;
 	std::unordered_map<long, ReceiveLimitOrderBookDataFunc*> mRequestId_To_ReceiveLOBFunc;
+
+	// Historical data
+	std::unordered_map<long, ReceiveHistoricalDataFunc*> mRequestId_To_ReceiveHistoricalDataFunc;
 };

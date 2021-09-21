@@ -557,6 +557,32 @@ void IBKRClient::FromContractDetailsToContractInfo(ContractInfo& contractInfoOut
     }
 }
 
+void IBKRClient::FromBarToHistoricalBarEntry(HistoricalBarEntry& historicalBarEntry, const Bar& bar)
+{
+    std::string yearStr = bar.time.size() >= 4 ? bar.time.substr(0, 4) : "";
+    std::string monthStr = bar.time.size() >= 6 ? bar.time.substr(4, 2) : "";
+    std::string dayStr = bar.time.size() >= 8 ? bar.time.substr(6, 2) : "";
+    std::string hourStr = bar.time.size() >= 12 ? bar.time.substr(10, 2) : "";
+    std::string minuteStr = bar.time.size() >= 15 ? bar.time.substr(13, 2) : "";
+    std::string secondStr = bar.time.size() >= 18 ? bar.time.substr(16, 2) : "";
+
+    struct tm timeStruct = {0};
+    timeStruct.tm_year = yearStr.empty() ? 0 : (std::atoi(yearStr.c_str()) - 1900);
+    timeStruct.tm_mon = monthStr.empty() ? 0 : (std::atoi(monthStr.c_str()) - 1);
+    timeStruct.tm_mday = dayStr.empty() ? 1 : std::atoi(dayStr.c_str());
+    timeStruct.tm_hour = hourStr.empty() ? 0 : std::atoi(hourStr.c_str());
+    timeStruct.tm_min = minuteStr.empty() ? 0 : std::atoi(minuteStr.c_str());
+    timeStruct.tm_sec = secondStr.empty() ? 0 : std::atoi(secondStr.c_str());
+    time_t time = mktime(&timeStruct);
+
+    historicalBarEntry.Time = time;
+    historicalBarEntry.Open = bar.open;
+    historicalBarEntry.High = bar.high;
+    historicalBarEntry.Low = bar.low;
+    historicalBarEntry.Close = bar.close;
+    historicalBarEntry.Volume = bar.volume;
+}
+
 void IBKRClient::GetContractCount(const ContractInfo& query, ContractQueryResult* result)
 {
     Contract contract;
@@ -706,6 +732,82 @@ void IBKRClient::GetMarketMakerName(const DataRequestResult& requestResult, int 
     memcpy(nameDest, name.c_str(), *nameSize);
 }
 
+void IBKRClient::RequestHistoricalData(const HistoricalDataInfo& dataInfo, DataRequestResult* result)
+{
+    std::string logMsg = std::string((std::string)"Historical data request submitted for: " +
+        dataInfo.ConInfoPtr->ToShortString()) +
+        " Request Id: " + std::to_string(mMarketDataRequestId);
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    // Set the contract info
+    Contract contract;
+    FromContractInfoToContract(contract, *dataInfo.ConInfoPtr);
+
+    std::string endTimeDate = ""; // <- current present moment
+
+    //  Valid Duration String units
+    //  Unit	Description
+    //-------------------------------------------------------------------------------------------
+    //  S	    Seconds
+    //  D	    Day
+    //  W	    Week
+    //  M	    Month
+    //  Y	    Year
+    std::string duration = "3 M";
+
+    //  Valid Bar Sizes
+    //  Size
+    //-------------------------------------------------------------------------------------------
+    //  1 secs	5 secs	10 secs	15 secs	30 secs
+    //  1 min	2 mins	3 mins	5 mins	10 mins	15 mins	20 mins	30 mins
+    //  1 hour	2 hours	3 hours	4 hours	8 hours
+    //  1 day
+    //  1 week
+    //  1 month
+    std::string barSize = "1 month";
+    
+    //Historical Data Types
+    //  Type	                        Open	High	Low	Close	Volume
+    //-------------------------------------------------------------------------------------------
+    //  TRADES	                        First traded price	Highest traded price	Lowest traded price	Last traded price	Total traded volume
+    //  MIDPOINT	                    Starting midpoint price	Highest midpoint price	Lowest midpoint price	Last midpoint price	N / A
+    //  BID	                            Starting bid price	Highest bid price	Lowest bid price	Last bid price	N / A
+    //  ASK	                            Starting ask price	Highest ask price	Lowest ask price	Last ask price	N / A
+    //  BID_ASK	                        Time average bid	Max Ask	Min Bid	Time average ask	N / A
+    //  ADJUSTED_LAST	                Dividend - adjusted first traded price	Dividend - adjusted high trade	Dividend - adjusted low trade	Dividend - adjusted last trade	Total traded volume
+    //  HISTORICAL_VOLATILITY	        Starting volatility	Highest volatility	Lowest volatility	Last volatility	N / A
+    //  OPTION_IMPLIED_VOLATILITY	    Starting implied volatility	Highest implied volatility	Lowest implied volatility	Last implied volatility	N / A
+    //  REBATE_RATE	                    Starting rebate rate	Highest rebate rate	Lowest rebate rate	Last rebate rate	N / A
+    //  FEE_RATE	                    Starting fee rate	Highest fee rate	Lowest fee rate	Last fee rate	N / A
+    //  YIELD_BID	                    Starting bid yield	Highest bid yield	Lowest bid yield	Last bid yield	N / A
+    //  YIELD_ASK	                    Starting ask yield	Highest ask yield	Lowest ask yield	Last ask yield	N / A
+    //  YIELD_BID_ASK	                Time average bid yield	Highest ask yield	Lowest bid yield	Time average ask yield	N / A
+    //  YIELD_LAST	                    Starting last yield	Highest last yield	Lowest last yield	Last last yield     N / A
+    std::string whatToShow = "TRADES";
+    if (dataInfo.ConInfoPtr->Type == SecurityType::Forex)
+    {
+        // Forex doesn't support the trades show type
+        whatToShow = "MIDPOINT";
+    }
+
+    // Whether (1) or not (0) to retrieve data generated only within Regular Trading Hours (RTH)
+    int useRTH = 1;
+
+    // Request the data
+    mClientSocketPtr->reqHistoricalData(mMarketDataRequestId, contract, endTimeDate, duration, barSize, whatToShow, useRTH, 1, true, TagValueListSPtr());
+
+    // Fill the return structure
+    result->RequestId = mMarketDataRequestId;
+    result->Type = DataRequestType::Historical;
+
+    //// Save the receive function and object
+    mRequestId_To_ReceiveHistoricalDataFunc[mMarketDataRequestId] = dataInfo.HistoricalDataOperationFunctionPtr;
+    mRequestId_To_ReceiveObject[mMarketDataRequestId] = dataInfo.HistoricalDataObjectPtr;
+
+    // Increase the request id for future requests
+    ++mMarketDataRequestId;
+}
+
 void IBKRClient::CancelMarketData(const DataRequestResult& requestResult)
 {
     std::string logMsg;
@@ -728,6 +830,12 @@ void IBKRClient::CancelMarketData(const DataRequestResult& requestResult)
         logMsg = std::string((std::string)"Limit Order Book data cancelled. Request Id: " + std::to_string(requestResult.RequestId));
         mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
         mClientSocketPtr->cancelMktDepth(requestResult.RequestId, true);
+        break;
+
+    case DataRequestType::Historical:
+        logMsg = std::string((std::string)"Historical data cancelled. Request Id: " + std::to_string(requestResult.RequestId));
+        mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+        mClientSocketPtr->cancelHistoricalData(requestResult.RequestId);
         break;
     }
 
@@ -1171,10 +1279,36 @@ void IBKRClient::receiveFA(faDataType pFaDataType, const std::string& cxml)
 
 void IBKRClient::historicalData(TickerId reqId, const Bar& bar)
 {
+    std::string logMsg = std::string(
+        (std::string)"HistoricalData. ReqId: " + std::to_string(reqId) +
+        (std::string)", Time: " + bar.time +
+        (std::string)", Open: " + std::to_string(bar.open) +
+        (std::string)", High: " + std::to_string(bar.high) +
+        (std::string)", Low: " + std::to_string(bar.low) +
+        (std::string)", Close: " + std::to_string(bar.close) +
+        (std::string)", Volume: " + std::to_string(bar.volume) +
+        (std::string)", Count: " + std::to_string(bar.count) +
+        (std::string)", WAP: " + std::to_string(bar.count));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    void* obj = mRequestId_To_ReceiveObject[reqId];
+    if (mRequestId_To_ReceiveHistoricalDataFunc[reqId])
+    {
+        HistoricalBarEntry newBar;
+        FromBarToHistoricalBarEntry(newBar, bar);
+        mRequestId_To_ReceiveHistoricalDataFunc[reqId](obj, reqId, false, &newBar);
+    }
 }
 
 void IBKRClient::historicalDataEnd(int reqId, const std::string& startDateStr, const std::string& endDateStr)
 {
+    std::string logMsg = std::string(
+        (std::string)"HistoricalDataEnd. ReqId: " + std::to_string(reqId) +
+        (std::string)", Start Time: " + startDateStr +
+        (std::string)", End Time: " + endDateStr);
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+
 }
 
 void IBKRClient::scannerParameters(const std::string& xml)
@@ -1375,6 +1509,25 @@ void IBKRClient::histogramData(int reqId, const HistogramDataVector& data)
 
 void IBKRClient::historicalDataUpdate(TickerId reqId, const Bar& bar)
 {
+    std::string logMsg = std::string(
+        (std::string)"HistoricalDataUpdate. ReqId: " + std::to_string(reqId) +
+        (std::string)", Time: " + bar.time +
+        (std::string)", Open: " + std::to_string(bar.open) +
+        (std::string)", High: " + std::to_string(bar.high) +
+        (std::string)", Low: " + std::to_string(bar.low) +
+        (std::string)", Close: " + std::to_string(bar.close) +
+        (std::string)", Volume: " + std::to_string(bar.volume) +
+        (std::string)", Count: " + std::to_string(bar.count) +
+        (std::string)", WAP: " + std::to_string(bar.count));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    void* obj = mRequestId_To_ReceiveObject[reqId];
+    if (mRequestId_To_ReceiveHistoricalDataFunc[reqId])
+    {
+        HistoricalBarEntry newBar;
+        FromBarToHistoricalBarEntry(newBar, bar);
+        mRequestId_To_ReceiveHistoricalDataFunc[reqId](obj, reqId, true, &newBar);
+    }
 }
 
 void IBKRClient::rerouteMktDataReq(int reqId, int conid, const std::string& exchange)

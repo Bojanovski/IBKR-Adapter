@@ -84,7 +84,7 @@ struct ConnectResult
 //
 // Contracts
 //
-enum class SecurityType : char { Stock, Future, Option };
+enum class SecurityType : char { Stock, Future, Option, Forex };
 struct ContractInfo
 {
 	SecurityType Type;
@@ -166,7 +166,23 @@ struct LimitOrderBookDataInfo
 	ReceiveLimitOrderBookDataFunc* LOBDataFunctionPtr;
 	void* LOBDataObjectPtr;
 };
-enum class DataRequestType : char { MarketData, TimeAndSales, LimitOrderBook };
+struct HistoricalBarEntry
+{
+	time_t Time;
+	double Open;
+	double High;
+	double Low;
+	double Close;
+	long long Volume;
+};
+typedef void ReceiveHistoricalDataFunc(void* obj, int requestId, bool isUpdate, HistoricalBarEntry* entry);
+struct HistoricalDataInfo
+{
+	const ContractInfo* ConInfoPtr;
+	ReceiveHistoricalDataFunc* HistoricalDataOperationFunctionPtr;
+	void* HistoricalDataObjectPtr;
+};
+enum class DataRequestType : char { MarketData, TimeAndSales, LimitOrderBook, Historical };
 struct DataRequestResult
 {
 	long RequestId;
@@ -211,6 +227,7 @@ public:
 	virtual void RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, DataRequestResult* result) = 0;
 	virtual void RequestLimitOrderBookData(const LimitOrderBookDataInfo& dataInfo, DataRequestResult* result) = 0;
 	virtual void GetMarketMakerName(const DataRequestResult& requestResult, int MMId, char* nameDest, int *nameSize) = 0;
+	virtual void RequestHistoricalData(const HistoricalDataInfo& dataInfo, DataRequestResult* result) = 0;
 	virtual void CancelMarketData(const DataRequestResult& requestResult) = 0;
 
 	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) = 0;

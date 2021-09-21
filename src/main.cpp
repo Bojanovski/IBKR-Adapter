@@ -293,6 +293,24 @@ void receiveLimitOrderBookDataFunc(void* obj, int requestId, int depth, LimitOrd
 	//cout << "-----------------------------------" << endl;
 }
 
+void receiveHistoricalDataFunc(void* obj, int requestId, bool isUpdate, HistoricalBarEntry* entry)
+{
+	struct tm timeStruct;
+	gmtime_s(&timeStruct, &entry->Time);
+	std::stringstream ss;
+	ss << std::setw(4) << std::setfill('0') << std::to_string(timeStruct.tm_year + 1900) << "-";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_mon + 1) << "-";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_mday) << "_";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_hour) << ":";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_min) << ":";
+	ss << std::setw(2) << std::setfill('0') << std::to_string(timeStruct.tm_sec);// +":" +
+	//ss << std::setw(2) << std::setfill('0') << std::to_string(millis);
+	std::string timeStr = ss.str();
+
+	cout << "+++++++++++++++++++++++ Request Id: " << requestId << " : " <<
+		timeStr << " : " << (isUpdate ? "updated" : "historic") << " : " << entry->Open << " : " << entry->High << " : " << entry->Low << " : " << entry->Close << " : " << entry->Volume << endl;
+}
+
 void connectCallback(ConnectResult result)
 {
 	auto continue_thread = static_cast<std::atomic<bool> *>(result.CallbackObject);
@@ -347,13 +365,14 @@ int main()
 		while (true)
 		{
 			cout << endl << endl << "Instructions:" << endl;
-			cout << "   1 <name> <type>	- get contract" << endl;
+			cout << "   1 <name> <type>	- get contract (type: 0 - stock, 1 - future, 2 - option)" << endl;
 			cout << "   2 <quantity>	- buy" << endl;
 			cout << "   3				- get data" << endl;
 			cout << "   4				- get time and sales" << endl;
 			cout << "   5				- get limit order book" << endl;
-			cout << "   6				- cancel get data" << endl;
-			cout << "   7				- exit" << endl;
+			cout << "   6				- get historic data" << endl;
+			cout << "   7				- cancel get data" << endl;
+			cout << "   8				- exit" << endl;
 
 			cin >> inChoice;
 			bool breakLoop = true;
@@ -369,7 +388,7 @@ int main()
 				query.Type = (SecurityType)type;
 
 				// Future specific stuff
-				memcpy(query.ExpiryDate, "20210921", EXPIRY_DATE_SIZE);
+				memcpy(query.ExpiryDate, "20211221", EXPIRY_DATE_SIZE);
 
 				strcpy_s(query.Symbol, sizeof(inStr.data()), inStr.data());
 				strcpy_s(query.Currency, sizeof("USD"), "USD");
@@ -423,8 +442,17 @@ int main()
 				impl->RequestLimitOrderBookData(info, &result);
 			}
 			break;
-			
+
 			case 6:
+			{
+				breakLoop = false;
+				HistoricalDataInfo info = { &contractInfo, &receiveHistoricalDataFunc, nullptr };
+				result = DataRequestResult();
+				impl->RequestHistoricalData(info, &result);
+			}
+			break;
+			
+			case 7:
 			{
 				breakLoop = false;
 				impl->CancelMarketData(result);
