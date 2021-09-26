@@ -107,6 +107,9 @@ struct ContractInfo
 		case SecurityType::Option:
 			retVal += ",OPT";
 			break;
+		case SecurityType::Forex:
+			retVal += ",FX";
+			break;
 		}
 		retVal += ")";
 		return retVal;
@@ -142,6 +145,7 @@ struct BaseMarketDataInfo
 	ReceivePriceDataFunction* ReceivePriceDataFunctionPtr;
 	void* ReceiveBaseMarketDataObjectPtr;
 };
+
 enum class ReceiveTimeAndSalesType : char { Buy, Sell, Unknown };
 typedef void ReceiveTimeAndSalesDataFunction(void*, int, time_t, ReceiveTimeAndSalesType, double, int);
 struct TimeAndSalesDataInfo
@@ -150,6 +154,7 @@ struct TimeAndSalesDataInfo
 	ReceiveTimeAndSalesDataFunction* ReceiveTimeAndSalesDataFunctionPtr;
 	void* ReceiveTimeAndSalesDataObjectPtr;
 };
+
 struct LimitOrderBookEntry
 {
 	double Price;
@@ -166,6 +171,7 @@ struct LimitOrderBookDataInfo
 	ReceiveLimitOrderBookDataFunc* LOBDataFunctionPtr;
 	void* LOBDataObjectPtr;
 };
+
 struct HistoricalBarEntry
 {
 	time_t Time;
@@ -178,10 +184,20 @@ struct HistoricalBarEntry
 typedef void ReceiveHistoricalDataFunc(void* obj, int requestId, bool isUpdate, HistoricalBarEntry* entry);
 struct HistoricalDataInfo
 {
+	enum class TimeUnit : char { Second, Minute, Hour, Day, Week, Month, Year };
+	struct TimeSpan
+	{
+		HistoricalDataInfo::TimeUnit Type;
+		int Value;
+	};
+	
 	const ContractInfo* ConInfoPtr;
+	TimeSpan Bar;
+	TimeSpan Duration;
 	ReceiveHistoricalDataFunc* HistoricalDataOperationFunctionPtr;
 	void* HistoricalDataObjectPtr;
 };
+
 enum class DataRequestType : char { MarketData, TimeAndSales, LimitOrderBook, Historical };
 struct DataRequestResult
 {
@@ -192,26 +208,40 @@ struct DataRequestResult
 //
 // Actions
 //
-enum class ActionType : char { Buy = 0, Sell = 1 };
-inline std::string ActionTypeToString(const ActionType& at) {switch (at){case ActionType::Buy:return "BUY"; case ActionType::Sell:return "SELL"; default: return "";}}
-struct LimitOrderInfo
-{
-	ActionType Action;
-	double Price;
-	double Quantity;
-	ContractInfo *ConInfoPtr;
-
-	std::string ToShortString() const { 
-		return (ActionTypeToString(Action) + ":" +
-			std::to_string((int)Quantity) + "-" + ConInfoPtr->Symbol + "@" +
-			std::to_string(Price) + "(" + ConInfoPtr->Currency + ")");
-}
-};
 typedef long OrderId;
-struct PlaceOrderResult
+enum class OrderType : char { Limit, Market };
+enum class ActionType : char { Buy, Sell };
+inline std::string ActionTypeToString(const ActionType& at) {switch (at){case ActionType::Buy:return "BUY"; case ActionType::Sell:return "SELL"; default: return "";}}
+struct OrderInfo
 {
 	OrderId Id{ -1 };
-	ResultStatus Status{ ResultStatus::Failure };
+	OrderType Type;
+	ActionType Action;
+	double Quantity;
+	struct
+	{
+		 double Price;
+	} LimitOrderInfo;
+	struct
+	{
+		// empty
+	} MarketOrderInfo;
+	ContractInfo* ConInfoPtr;
+
+	std::string ToShortString() const
+	{
+		 return (ActionTypeToString(Action) + ":" +
+			 std::to_string((int)Quantity) + "-" +
+			 (Type == OrderType::Limit ? (ConInfoPtr->Symbol + std::string("@") + std::to_string(LimitOrderInfo.Price)) : "") +
+			 "(" + ConInfoPtr->Currency + ")");
+	}
+};
+enum class OrderResultType : char { NewOrder, ModifiedOrder, Undefined };
+struct PlaceOrderResult
+{
+	OrderId Id { -1 };
+	ResultStatus Status { ResultStatus::Failure };
+	OrderResultType Type { OrderResultType::Undefined };
 };
 
 class IGenericConnectionAdapter
@@ -230,7 +260,8 @@ public:
 	virtual void RequestHistoricalData(const HistoricalDataInfo& dataInfo, DataRequestResult* result) = 0;
 	virtual void CancelMarketData(const DataRequestResult& requestResult) = 0;
 
-	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) = 0;
+	virtual void ManageOrder(const OrderInfo& orderInfo, PlaceOrderResult* result) = 0;
+	virtual void CancelOrder(const PlaceOrderResult& orderResult) = 0;
 };
 
 //

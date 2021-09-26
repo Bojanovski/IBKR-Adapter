@@ -359,20 +359,22 @@ int main()
 	{
 		cout << "Connection established" << endl;
 		ContractInfo contractInfo;
+		PlaceOrderResult orderResult;
 		DataRequestResult result;
 		int inChoice;
 		string inStr = "";
 		while (true)
 		{
 			cout << endl << endl << "Instructions:" << endl;
-			cout << "   1 <name> <type>	- get contract (type: 0 - stock, 1 - future, 2 - option)" << endl;
+			cout << "   1 <name> <type>	- get contract (type: 0 - stock, 1 - future, 2 - option, 3 - forex)" << endl;
 			cout << "   2 <quantity>	- buy" << endl;
-			cout << "   3				- get data" << endl;
-			cout << "   4				- get time and sales" << endl;
-			cout << "   5				- get limit order book" << endl;
-			cout << "   6				- get historic data" << endl;
-			cout << "   7				- cancel get data" << endl;
-			cout << "   8				- exit" << endl;
+			cout << "   3				- cancel order" << endl;
+			cout << "   4				- get data" << endl;
+			cout << "   5				- get time and sales" << endl;
+			cout << "   6				- get limit order book" << endl;
+			cout << "   7				- get historic data" << endl;
+			cout << "   8				- cancel get data" << endl;
+			cout << "   9				- exit" << endl;
 
 			cin >> inChoice;
 			bool breakLoop = true;
@@ -408,15 +410,23 @@ int main()
 			{
 				breakLoop = false;
 				cin >> inStr;
-				LimitOrderInfo placeInfo = { ActionType::Buy, 900.0, (double)atoi(inStr.c_str()), &contractInfo };
-				PlaceOrderResult result;
-				impl->PlaceLimitOrder(placeInfo, &result);
-				if (result.Status != ResultStatus::Success) continue;
-				cout << "Order placed: " << placeInfo.ToShortString() << " id: " << result.Id << endl;
+				OrderInfo placeInfo = { orderResult.Id, OrderType::Market, ActionType::Buy, (double)atoi(inStr.c_str()), { 900.0 }, {}, &contractInfo };
+				impl->ManageOrder(placeInfo, &orderResult);
+				if (orderResult.Status != ResultStatus::Success) continue;
+				cout << (orderResult.Type == OrderResultType::NewOrder ? "Order placed: " : "Order updated: ") <<
+					placeInfo.ToShortString() << " id: " << orderResult.Id << endl;
 			}
 			break;
 
 			case 3:
+			{
+				breakLoop = false;
+				impl->CancelOrder(orderResult);
+				cout << "Order cancelled " << "id: " << orderResult.Id << endl;
+			}
+			break;
+
+			case 4:
 			{
 				breakLoop = false;
 				BaseMarketDataInfo info = { &contractInfo, &receiveMarketDataFunc, &receiveVolumeDataFunc, &receivePriceDataFunc, nullptr };
@@ -425,7 +435,7 @@ int main()
 			}
 			break;
 
-			case 4:
+			case 5:
 			{
 				breakLoop = false;
 				TimeAndSalesDataInfo info = { &contractInfo, &receiveTimeAndSalesDataFunc, nullptr };
@@ -434,7 +444,7 @@ int main()
 			}
 			break;
 
-			case 5:
+			case 6:
 			{
 				breakLoop = false;
 				LimitOrderBookDataInfo info = { &contractInfo, 10, &receiveLimitOrderBookOperationDataFunc, &receiveLimitOrderBookDataFunc, nullptr };
@@ -443,16 +453,16 @@ int main()
 			}
 			break;
 
-			case 6:
+			case 7:
 			{
 				breakLoop = false;
-				HistoricalDataInfo info = { &contractInfo, &receiveHistoricalDataFunc, nullptr };
+				HistoricalDataInfo info = { &contractInfo, { HistoricalDataInfo::TimeUnit::Hour, 8} , { HistoricalDataInfo::TimeUnit::Day, 3 }, &receiveHistoricalDataFunc, nullptr };
 				result = DataRequestResult();
 				impl->RequestHistoricalData(info, &result);
 			}
 			break;
 			
-			case 7:
+			case 8:
 			{
 				breakLoop = false;
 				impl->CancelMarketData(result);

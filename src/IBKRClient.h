@@ -49,7 +49,8 @@ public:
 	virtual void GetMarketMakerName(const DataRequestResult& requestResult, int MMId, char *nameDest, int *nameSize) override;
 	virtual void RequestHistoricalData(const HistoricalDataInfo& dataInfo, DataRequestResult* result) override;
 	virtual void CancelMarketData(const DataRequestResult& requestResult) override;
-	virtual void PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result) override;
+	virtual void ManageOrder(const OrderInfo& orderInfo, PlaceOrderResult* result) override;
+	virtual void CancelOrder(const PlaceOrderResult& orderResult) override;
 
 	// EWrapper implementations
 	virtual void tickPrice(TickerId tickerId, TickType field, double price, const TickAttrib& attrib) override;
@@ -189,6 +190,8 @@ private:
 	std::mutex mOrderIdMutex;
 	std::condition_variable mOrderIdConditionVariable;
 	OrderId mOrderId;
+	std::set<OrderId> mOrderIdsInUse;
+	std::set<OrderId> mCanceledOrderIds;
 
 	// Requesting contract data
 	std::mutex mContractRequestMutex;

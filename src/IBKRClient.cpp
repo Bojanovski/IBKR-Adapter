@@ -533,6 +533,10 @@ void IBKRClient::FromContractInfoToContract(Contract& contractOut, const Contrac
     case SecurityType::Option:
         contractOut.secType = "OPT";
         break;
+
+    case SecurityType::Forex:
+        contractOut.secType = "CASH";
+        break;
     }
 }
 
@@ -554,6 +558,10 @@ void IBKRClient::FromContractDetailsToContractInfo(ContractInfo& contractInfoOut
     if (contractDetailsIn.contract.secType.compare("OPT") == 0)
     {
         contractInfoOut.Type = SecurityType::Option;
+    }
+    if (contractDetailsIn.contract.secType.compare("CASH") == 0)
+    {
+        contractInfoOut.Type = SecurityType::Forex;
     }
 }
 
@@ -753,7 +761,34 @@ void IBKRClient::RequestHistoricalData(const HistoricalDataInfo& dataInfo, DataR
     //  W	    Week
     //  M	    Month
     //  Y	    Year
-    std::string duration = "3 M";
+    std::string duration;
+    switch (dataInfo.Duration.Type)
+    {
+    case HistoricalDataInfo::TimeUnit::Second:
+        duration = std::to_string(dataInfo.Duration.Value) + " S";
+        break;
+
+    case HistoricalDataInfo::TimeUnit::Day:
+        duration = std::to_string(dataInfo.Duration.Value) + " D";
+        break;
+
+    case HistoricalDataInfo::TimeUnit::Week:
+        duration = std::to_string(dataInfo.Duration.Value) + " W";
+        break;
+
+    case HistoricalDataInfo::TimeUnit::Month:
+        duration = std::to_string(dataInfo.Duration.Value) + " M";
+        break;
+
+    case HistoricalDataInfo::TimeUnit::Year:
+        duration = std::to_string(dataInfo.Duration.Value) + " Y";
+        break;
+
+    default:
+        logMsg = "Unsupported duration time unit type";
+        mLogFunctionPtr(mLogObjectPtr, LogType::Error, logMsg.c_str());
+        return;
+    }
 
     //  Valid Bar Sizes
     //  Size
@@ -764,8 +799,123 @@ void IBKRClient::RequestHistoricalData(const HistoricalDataInfo& dataInfo, DataR
     //  1 day
     //  1 week
     //  1 month
-    std::string barSize = "1 month";
-    
+    std::string barSize;
+    switch (dataInfo.Bar.Type)
+    {
+    case HistoricalDataInfo::TimeUnit::Second:
+        if (dataInfo.Bar.Value == 1)
+        {
+            barSize = "1 sec";
+        }
+        else if (dataInfo.Bar.Value == 5 ||
+            dataInfo.Bar.Value == 10 ||
+            dataInfo.Bar.Value == 15 ||
+            dataInfo.Bar.Value == 30)
+        {
+            barSize = std::to_string(dataInfo.Bar.Value) + " secs";
+        }
+        else
+        {
+            logMsg = "Valid number of seconds in a single bar can only be 1, 5, 10, 15 or 30. The value entered is: " +
+                std::to_string(dataInfo.Bar.Value);
+            mLogFunctionPtr(mLogObjectPtr, LogType::Error, logMsg.c_str());
+            return;
+        }
+        break;
+
+    case HistoricalDataInfo::TimeUnit::Minute:
+        if (dataInfo.Bar.Value == 1)
+        {
+            barSize = "1 min";
+        }
+        else if (dataInfo.Bar.Value == 2 ||
+            dataInfo.Bar.Value == 3 ||
+            dataInfo.Bar.Value == 5 ||
+            dataInfo.Bar.Value == 10 ||
+            dataInfo.Bar.Value == 15 ||
+            dataInfo.Bar.Value == 20 ||
+            dataInfo.Bar.Value == 30)
+        {
+            barSize = std::to_string(dataInfo.Bar.Value) + " mins";
+        }
+        else
+        {
+            logMsg = "Valid number of minutes in a single bar can only be 1, 2, 3, 5, 10, 15, 20 or 30. The value entered is: " +
+                std::to_string(dataInfo.Bar.Value);
+            mLogFunctionPtr(mLogObjectPtr, LogType::Error, logMsg.c_str());
+            return;
+        }
+        break;
+
+    case HistoricalDataInfo::TimeUnit::Hour:
+        if (dataInfo.Bar.Value == 1)
+        {
+            barSize = "1 hour";
+        }
+        else if (dataInfo.Bar.Value == 2 ||
+            dataInfo.Bar.Value == 3 ||
+            dataInfo.Bar.Value == 4 ||
+            dataInfo.Bar.Value == 8)
+        {
+            barSize = std::to_string(dataInfo.Bar.Value) + " hours";
+        }
+        else
+        {
+            logMsg = "Valid number of hours in a single bar can only be 1, 2, 3, 4 or 8. The value entered is: " +
+                std::to_string(dataInfo.Bar.Value);
+            mLogFunctionPtr(mLogObjectPtr, LogType::Error, logMsg.c_str());
+            return;
+        }
+        break;
+
+    case HistoricalDataInfo::TimeUnit::Day:
+        if (dataInfo.Bar.Value == 1)
+        {
+            barSize = "1 day";
+        }
+        else
+        {
+            logMsg = "Valid number of days in a single bar can only be 1. The value entered is: " +
+                std::to_string(dataInfo.Bar.Value);
+            mLogFunctionPtr(mLogObjectPtr, LogType::Error, logMsg.c_str());
+            return;
+        }
+        break;
+
+    case HistoricalDataInfo::TimeUnit::Week:
+        if (dataInfo.Bar.Value == 1)
+        {
+            barSize = "1 week";
+        }
+        else
+        {
+            logMsg = "Valid number of weeks in a single bar can only be 1. The value entered is: " +
+                std::to_string(dataInfo.Bar.Value);
+            mLogFunctionPtr(mLogObjectPtr, LogType::Error, logMsg.c_str());
+            return;
+        }
+        break;
+
+    case HistoricalDataInfo::TimeUnit::Month:
+        if (dataInfo.Bar.Value == 1)
+        {
+            barSize = "1 month";
+        }
+        else
+        {
+            logMsg = "Valid number of months in a single bar can only be 1. The value entered is: " +
+                std::to_string(dataInfo.Bar.Value);
+            mLogFunctionPtr(mLogObjectPtr, LogType::Error, logMsg.c_str());
+            return;
+        }
+        break;
+
+    default:
+        logMsg = "Unsupported bar time unit type";
+        mLogFunctionPtr(mLogObjectPtr, LogType::Error, logMsg.c_str());
+        return;
+    }
+
     //Historical Data Types
     //  Type	                        Open	High	Low	Close	Volume
     //-------------------------------------------------------------------------------------------
@@ -853,10 +1003,19 @@ void IBKRClient::CancelMarketData(const DataRequestResult& requestResult)
     //mRequestId_To_ReceiveLOBFunc.erase(requestResult.RequestId);
 }
 
-void IBKRClient::PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResult* result)
+void IBKRClient::ManageOrder(const OrderInfo& orderInfo, PlaceOrderResult* result)
 {
     // Set the order info
     Order order;
+    switch (orderInfo.Type)
+    {
+    case OrderType::Limit:
+        order.orderType = "LMT";
+        break;
+    case OrderType::Market:
+        order.orderType = "MKT";
+        break;
+    }
     switch (orderInfo.Action)
     {
     case ActionType::Buy:
@@ -866,39 +1025,68 @@ void IBKRClient::PlaceLimitOrder(const LimitOrderInfo& orderInfo, PlaceOrderResu
         order.action = "SELL";
         break;
     }
-    order.orderType = "LMT";
     order.totalQuantity = orderInfo.Quantity;
-    order.lmtPrice = orderInfo.Price;
+    order.lmtPrice = orderInfo.LimitOrderInfo.Price;
+    order.orderId = orderInfo.Id;
+
+    // These flags generated "not supported" errors if left true
+    order.eTradeOnly = false;
+    order.firmQuoteOnly = false;
 
     // Set the contract info
     Contract contract;
     FromContractInfoToContract(contract, *orderInfo.ConInfoPtr);
 
-    // Wait until the order id gets updated
-    std::unique_lock<std::mutex> lk(mOrderIdMutex);
-    bool waitResultSuccess = mOrderIdConditionVariable.wait_for(lk, mSignalWaitTimeout * 1ms, [this] {return mOrderId != -1; });
-
-    if (waitResultSuccess)
+    bool isUsed = mOrderIdsInUse.find(order.orderId) != mOrderIdsInUse.end();
+    bool isCanceled = mCanceledOrderIds.find(order.orderId) != mCanceledOrderIds.end();
+    if (isUsed && !isCanceled) // use the old order Id, we are modifiying the order
     {
-        // Get the new order id value and invalidate it
-        OrderId orderId = mOrderId;
-        mOrderId = -1;
-
-        // Place the order and immediately request a new order id
-        mClientSocketPtr->placeOrder(orderId, contract, order);
-        mClientSocketPtr->reqIds(-1);
-        result->Id = orderId;
+        // Update the order
+        mClientSocketPtr->placeOrder(order.orderId, contract, order);
+        result->Id = order.orderId;
         result->Status = ResultStatus::Success;
+        result->Type = OrderResultType::ModifiedOrder;
     }
-    else
+    else // we need a new order Id
     {
-        result->Id = -1;
-        result->Status = ResultStatus::WaitTimeout;
-    }
+        // Wait until the order id gets updated
+        std::unique_lock<std::mutex> lk(mOrderIdMutex);
+        bool waitResultSuccess = mOrderIdConditionVariable.wait_for(lk, mSignalWaitTimeout * 1ms, [this] {return mOrderId != -1; });
 
-    // Unlock and signal
-    lk.unlock();
-    mOrderIdConditionVariable.notify_one();
+        if (waitResultSuccess)
+        {
+            // Get the new order id value and invalidate it
+            OrderId orderId = mOrderId;
+            mOrderId = -1;
+
+            // Place the order and immediately request a new order id
+            mClientSocketPtr->placeOrder(orderId, contract, order);
+            mClientSocketPtr->reqIds(-1);
+            result->Id = orderId;
+            result->Status = ResultStatus::Success;
+            result->Type = OrderResultType::NewOrder;
+            mOrderIdsInUse.insert(orderId);
+        }
+        else
+        {
+            result->Id = -1;
+            result->Status = ResultStatus::WaitTimeout;
+        }
+
+        // Unlock and signal
+        lk.unlock();
+        mOrderIdConditionVariable.notify_one();
+    }
+}
+
+void IBKRClient::CancelOrder(const PlaceOrderResult& orderResult)
+{
+    if (mOrderIdsInUse.find(orderResult.Id) != mOrderIdsInUse.end()) // use the old order Id, we are modifiying the order
+    {
+        // Update the order
+        mClientSocketPtr->cancelOrder(orderResult.Id);
+        mCanceledOrderIds.insert(orderResult.Id);
+    }
 }
 
 
