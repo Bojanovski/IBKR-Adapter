@@ -32,6 +32,23 @@ extern "C" { // Needs to expose these functions without c++ name mangling
 
 class IBKRClient : public IGenericConnectionAdapter, public EWrapper
 {
+private:
+	struct ContractInfoHashFunction
+{
+	size_t operator()(const ContractInfo& c) const
+	{
+		std::string symbol = std::string(c.Symbol);
+		std::string exchange = std::string(c.Exchange);
+		std::string currency = std::string(c.Currency);
+		std::string expiryDate = c.UsesExpiryDate() ? std::string(c.ExpiryDate) : "";
+		size_t hash1 = std::hash<std::string>()(symbol);
+		size_t hash2 = std::hash<std::string>()(exchange);
+		size_t hash3 = std::hash<std::string>()(currency);
+		size_t hash4 = std::hash<std::string>()(expiryDate);
+		return hash1 ^ hash2 ^ hash3 ^ hash4;
+	}
+};
+
 public:
 	IBKRClient(unsigned long signalWaitTimeout = 2000);
 	virtual ~IBKRClient();
@@ -49,6 +66,8 @@ public:
 	virtual void GetMarketMakerName(const DataRequestResult& requestResult, int MMId, char *nameDest, int *nameSize) override;
 	virtual void RequestHistoricalData(const HistoricalDataInfo& dataInfo, DataRequestResult* result) override;
 	virtual void CancelMarketData(const DataRequestResult& requestResult) override;
+	virtual void RequestAccountData(const AccountDataInfo& dataInfo, AccountRequestResult* result) override;
+	virtual void CancelAccountData(const AccountRequestResult& requestResult) override;
 	virtual void ManageOrder(const OrderInfo& orderInfo, PlaceOrderResult* result) override;
 	virtual void CancelOrder(const PlaceOrderResult& orderResult) override;
 
@@ -165,6 +184,7 @@ private:
 	void StopListeningForMessages();
 
 	void FromContractInfoToContract(Contract& contractOut, const ContractInfo& contractInfoIn);
+	void FromContractToContractInfo(ContractInfo& contractInfoOut, const Contract& contractIn);
 	void FromContractDetailsToContractInfo(ContractInfo& contractInfoOut, const ContractDetails& contractDetailsIn);
 	void FromBarToHistoricalBarEntry(HistoricalBarEntry& historicalBarEntry, const Bar& bar);
 
@@ -181,6 +201,7 @@ private:
 	std::unique_ptr<EReader> mReaderPtr;
 	std::atomic<bool> mListenForMessages;
 	std::thread mMessgeListeningThread;
+	std::unordered_map<ContractInfo, double, ContractInfoHashFunction> mAccountPositions;
 
 	// Logging
 	LogFunction *mLogFunctionPtr;
@@ -204,19 +225,6 @@ private:
 		std::vector<ContractInfo> mReceivedContractInfos;
 	};
 	std::map<int, ContractRequestResponse> mRequestId_To_ContractRequestResponse;
-	struct ContractInfoHashFunction 
-	{
-		size_t operator()(const ContractInfo& c) const
-		{
-			std::string symbol = std::string(c.Symbol);
-			std::string exchange = std::string(c.Exchange);
-			std::string currency = std::string(c.Currency);
-			size_t hash1 = std::hash<std::string>()(symbol);
-			size_t hash2 = std::hash<std::string>()(exchange);
-			size_t hash3 = std::hash<std::string>()(currency);
-			return hash1 ^ hash2 ^ hash3;
-		}
-	};
 	std::unordered_map<ContractInfo, long, ContractInfoHashFunction> ContractInfo_To_ContractId;
 
 	// Limit Order Book
@@ -241,7 +249,7 @@ private:
 	// Requesting market data
 	//
 	long mMarketDataRequestId;
-	std::unordered_map<long, void*> mRequestId_To_ReceiveObject;
+	std::unordered_map<long, void*> mRequestId_To_ReceiveMarketDataObject;
 
 	// Base Market data
 	std::unordered_map<long, ReceivePriceSizeDataFunction*> mRequestId_To_ReceivePriceSizeFunc;
@@ -261,4 +269,9 @@ private:
 
 	// Historical data
 	std::unordered_map<long, ReceiveHistoricalDataFunc*> mRequestId_To_ReceiveHistoricalDataFunc;
+
+	// Position data
+	long mAccountDataRequestId;
+	std::unordered_map<long, void*> mRequestId_To_ReceiveAccountDataObject;
+	std::unordered_map<long, ReceiveAccountPositionDataFunction*> mRequestId_To_ReceiveAccountPositionDataFunc;
 };

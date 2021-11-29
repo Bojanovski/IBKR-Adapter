@@ -307,8 +307,14 @@ void receiveHistoricalDataFunc(void* obj, int requestId, bool isUpdate, Historic
 	//ss << std::setw(2) << std::setfill('0') << std::to_string(millis);
 	std::string timeStr = ss.str();
 
-	cout << "+++++++++++++++++++++++ Request Id: " << requestId << " : " <<
+	cout << "+++++++++++++++++++++++ Market Data Request Id: " << requestId << " : " <<
 		timeStr << " : " << (isUpdate ? "updated" : "historic") << " : " << entry->Open << " : " << entry->High << " : " << entry->Low << " : " << entry->Close << " : " << entry->Volume << endl;
+}
+
+void receiveAccountPositionDataFunc(void* obj, int requestId, const ContractInfo& contract, double position)
+{
+	cout << "+++++++++++++++++++++++ Account Data Request Id: " << requestId << " : " <<
+		contract.ToShortString() << " : " << position << endl;
 }
 
 void connectCallback(ConnectResult result)
@@ -351,6 +357,11 @@ int main()
 	connInfo.CallbackObject = &continue_thread;
 	connInfo.CallbackFunctionPtr = connectCallback;
 	impl->Connect(connInfo);
+
+	// Automatically subscribe for account position data
+	AccountDataInfo accDataInfo = { &receiveAccountPositionDataFunc, nullptr};
+	AccountRequestResult accReqResult;
+	impl->RequestAccountData(accDataInfo, &accReqResult);
 
 	// Wait for the callback
 	while (!continue_thread);

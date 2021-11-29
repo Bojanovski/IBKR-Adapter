@@ -115,11 +115,22 @@ struct ContractInfo
 		return retVal;
 	}
 
+	bool UsesExpiryDate() const
+	{
+		return (Type == SecurityType::Future || Type == SecurityType::Option);
+	}
+
 	bool operator==(const ContractInfo& otherC) const
 	{
 		return (strcmp(this->Symbol, otherC.Symbol) == 0 &&
 			strcmp(this->Exchange, otherC.Exchange) == 0 &&
-			strcmp(this->Currency, otherC.Currency) == 0);
+			strcmp(this->Currency, otherC.Currency) == 0 &&
+			(!UsesExpiryDate() || strcmp(this->ExpiryDate, otherC.ExpiryDate) == 0));
+	}
+
+	bool operator!=(const ContractInfo& otherC) const
+	{
+		return !operator==(otherC);
 	}
 };
 struct ContractQueryResult
@@ -206,6 +217,21 @@ struct DataRequestResult
 };
 
 //
+// Account Data
+//
+typedef void ReceiveAccountPositionDataFunction(void*, int, const ContractInfo&, double);
+struct AccountDataInfo
+{
+	ReceiveAccountPositionDataFunction* ReceiveAccountPositionDataFunctionPtr;
+	void* ReceiveAccountDataObjectPtr;
+};
+
+struct AccountRequestResult
+{
+	long RequestId;
+};
+
+//
 // Actions
 //
 typedef long OrderId;
@@ -253,12 +279,16 @@ public:
 	virtual void Disconnect() = 0;
 	virtual void GetContractCount(const ContractInfo& query, ContractQueryResult* result) = 0;
 	virtual void GetContracts(const ContractQueryResult& requestResult, ContractInfo *resultArray) = 0;
+
 	virtual void RequestBaseMarketData(const BaseMarketDataInfo& dataInfo, DataRequestResult* result) = 0;
 	virtual void RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, DataRequestResult* result) = 0;
 	virtual void RequestLimitOrderBookData(const LimitOrderBookDataInfo& dataInfo, DataRequestResult* result) = 0;
 	virtual void GetMarketMakerName(const DataRequestResult& requestResult, int MMId, char* nameDest, int *nameSize) = 0;
 	virtual void RequestHistoricalData(const HistoricalDataInfo& dataInfo, DataRequestResult* result) = 0;
 	virtual void CancelMarketData(const DataRequestResult& requestResult) = 0;
+
+	virtual void RequestAccountData(const AccountDataInfo& dataInfo, AccountRequestResult* result) = 0;
+	virtual void CancelAccountData(const AccountRequestResult& requestResult) = 0;
 
 	virtual void ManageOrder(const OrderInfo& orderInfo, PlaceOrderResult* result) = 0;
 	virtual void CancelOrder(const PlaceOrderResult& orderResult) = 0;

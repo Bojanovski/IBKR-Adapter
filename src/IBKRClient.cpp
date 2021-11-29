@@ -295,6 +295,7 @@ IBKRClient::IBKRClient(unsigned long signalWaitTimeout)
     : EWrapper()
     , mOSSignal(signalWaitTimeout)
     , mSignalWaitTimeout(signalWaitTimeout)
+    , mIsTryingToConnect(false)
     , mClientSocketPtr(std::make_unique<EClientSocket>((EWrapper*)this, &mOSSignal))
     , mExtraAuth(false)
     , mListenForMessages(false)
@@ -304,7 +305,7 @@ IBKRClient::IBKRClient(unsigned long signalWaitTimeout)
     , mOrderId(-1)
     , mContractRequestId(0)
     , mMarketDataRequestId(0)
-    , mIsTryingToConnect(false)
+    , mAccountDataRequestId(0)
 {
 
 }
@@ -404,6 +405,9 @@ void IBKRClient::Connect(const ConnectInfo& connectInfo)
     
             // Start listening for messages
             StartListeningForMessages();
+
+            // Automatically subscribe to some of the data
+            this->mClientSocketPtr->reqPositions();
         }
         else
         {
@@ -465,6 +469,41 @@ void IBKRClient::Disconnect()
     mClientSocketPtr->eDisconnect();
     StopListeningForMessages();
     mReaderPtr.reset();
+
+    //
+    // Clear the data members
+    //
+
+    // Requesting contract data
+    mRequestId_To_ContractRequestResponse.clear();
+    ContractInfo_To_ContractId.clear();
+
+    // Requesting market data
+    mRequestId_To_ReceiveMarketDataObject.clear();
+
+    // Base Market data
+    mRequestId_To_ReceivePriceSizeFunc.clear();
+    mRequestId_To_ReceiveVolumeFunc.clear();
+    mRequestId_To_ReceivePriceFunc.clear();
+    mRequestIdDataType_To_PriceSize.clear();
+    mRequestId_To_Volume.clear();
+    mRequestIdPriceType_To_Price.clear();
+
+    // Time and Sales data
+    mRequestId_To_ReceiveTimeAndSalesFunc.clear();
+
+    // LOB data
+    mRequestId_To_LOB.clear();
+    mRequestId_To_ReceiveLOBOperationFunc.clear();
+    mRequestId_To_ReceiveLOBFunc.clear();
+
+    // Historical data
+    mRequestId_To_ReceiveHistoricalDataFunc.clear();
+
+    // Position data
+    mAccountPositions.clear();
+    mRequestId_To_ReceiveAccountDataObject.clear();
+    mRequestId_To_ReceiveAccountPositionDataFunc.clear();
 }
 
 void IBKRClient::StartListeningForMessages()
@@ -540,29 +579,35 @@ void IBKRClient::FromContractInfoToContract(Contract& contractOut, const Contrac
     }
 }
 
-void IBKRClient::FromContractDetailsToContractInfo(ContractInfo& contractInfoOut, const ContractDetails& contractDetailsIn)
+void IBKRClient::FromContractToContractInfo(ContractInfo& contractInfoOut, const Contract& contractIn)
 {
-    strcpy_s(contractInfoOut.Symbol, contractDetailsIn.contract.symbol.c_str());
-    strcpy_s(contractInfoOut.Exchange, contractDetailsIn.contract.exchange.c_str());
-    strcpy_s(contractInfoOut.Currency, contractDetailsIn.contract.currency.c_str());
+    strcpy_s(contractInfoOut.Symbol, contractIn.symbol.c_str());
+    strcpy_s(contractInfoOut.Exchange, contractIn.exchange.c_str());
+    strcpy_s(contractInfoOut.Currency, contractIn.currency.c_str());
 
-    if (contractDetailsIn.contract.secType.compare("STK") == 0)
+    if (contractIn.secType.compare("STK") == 0)
     {
         contractInfoOut.Type = SecurityType::Stock;
     }
-    if (contractDetailsIn.contract.secType.compare("FUT") == 0)
+    if (contractIn.secType.compare("FUT") == 0)
     {
         contractInfoOut.Type = SecurityType::Future;
-        memcpy(contractInfoOut.ExpiryDate, contractDetailsIn.contract.lastTradeDateOrContractMonth.data(), 8);
+        memcpy(contractInfoOut.ExpiryDate, contractIn.lastTradeDateOrContractMonth.data(), 8);
     }
-    if (contractDetailsIn.contract.secType.compare("OPT") == 0)
+    if (contractIn.secType.compare("OPT") == 0)
     {
         contractInfoOut.Type = SecurityType::Option;
+        memcpy(contractInfoOut.ExpiryDate, contractIn.lastTradeDateOrContractMonth.data(), 8);
     }
-    if (contractDetailsIn.contract.secType.compare("CASH") == 0)
+    if (contractIn.secType.compare("CASH") == 0)
     {
         contractInfoOut.Type = SecurityType::Forex;
     }
+}
+
+void IBKRClient::FromContractDetailsToContractInfo(ContractInfo& contractInfoOut, const ContractDetails& contractDetailsIn)
+{
+    FromContractToContractInfo(contractInfoOut, contractDetailsIn.contract);
 }
 
 void IBKRClient::FromBarToHistoricalBarEntry(HistoricalBarEntry& historicalBarEntry, const Bar& bar)
@@ -669,7 +714,7 @@ void IBKRClient::RequestBaseMarketData(const BaseMarketDataInfo& marketDataInfo,
     mRequestId_To_ReceivePriceSizeFunc[mMarketDataRequestId] = marketDataInfo.ReceivePriceSizeDataFunctionPtr;
     mRequestId_To_ReceiveVolumeFunc[mMarketDataRequestId] = marketDataInfo.ReceiveVolumeDataFunctionPtr;
     mRequestId_To_ReceivePriceFunc[mMarketDataRequestId] = marketDataInfo.ReceivePriceDataFunctionPtr;
-    mRequestId_To_ReceiveObject[mMarketDataRequestId] = marketDataInfo.ReceiveBaseMarketDataObjectPtr;
+    mRequestId_To_ReceiveMarketDataObject[mMarketDataRequestId] = marketDataInfo.ReceiveBaseMarketDataObjectPtr;
 
     // Increase the request id for future requests
     ++mMarketDataRequestId;
@@ -695,7 +740,7 @@ void IBKRClient::RequestTimeAndSalesData(const TimeAndSalesDataInfo& dataInfo, D
 
     //// Save the receive function and object
     mRequestId_To_ReceiveTimeAndSalesFunc[mMarketDataRequestId] = dataInfo.ReceiveTimeAndSalesDataFunctionPtr;
-    mRequestId_To_ReceiveObject[mMarketDataRequestId] = dataInfo.ReceiveTimeAndSalesDataObjectPtr;
+    mRequestId_To_ReceiveMarketDataObject[mMarketDataRequestId] = dataInfo.ReceiveTimeAndSalesDataObjectPtr;
 
     // Increase the request id for future requests
     ++mMarketDataRequestId;
@@ -722,7 +767,7 @@ void IBKRClient::RequestLimitOrderBookData(const LimitOrderBookDataInfo& dataInf
     //// Save the receive function and object
     mRequestId_To_ReceiveLOBOperationFunc[mMarketDataRequestId] = dataInfo.LOBDataOperationFunctionPtr;
     mRequestId_To_ReceiveLOBFunc[mMarketDataRequestId] = dataInfo.LOBDataFunctionPtr;
-    mRequestId_To_ReceiveObject[mMarketDataRequestId] = dataInfo.LOBDataObjectPtr;
+    mRequestId_To_ReceiveMarketDataObject[mMarketDataRequestId] = dataInfo.LOBDataObjectPtr;
 
     // Initialize the structure
     mRequestId_To_LOB[mMarketDataRequestId] = std::make_unique<LimitOrderBook>(dataInfo.Depth);
@@ -941,7 +986,7 @@ void IBKRClient::RequestHistoricalData(const HistoricalDataInfo& dataInfo, DataR
     }
 
     // Whether (1) or not (0) to retrieve data generated only within Regular Trading Hours (RTH)
-    int useRTH = 1;
+    int useRTH = 0;
 
     // Request the data
     mClientSocketPtr->reqHistoricalData(mMarketDataRequestId, contract, endTimeDate, duration, barSize, whatToShow, useRTH, 1, true, TagValueListSPtr());
@@ -952,7 +997,7 @@ void IBKRClient::RequestHistoricalData(const HistoricalDataInfo& dataInfo, DataR
 
     //// Save the receive function and object
     mRequestId_To_ReceiveHistoricalDataFunc[mMarketDataRequestId] = dataInfo.HistoricalDataOperationFunctionPtr;
-    mRequestId_To_ReceiveObject[mMarketDataRequestId] = dataInfo.HistoricalDataObjectPtr;
+    mRequestId_To_ReceiveMarketDataObject[mMarketDataRequestId] = dataInfo.HistoricalDataObjectPtr;
 
     // Increase the request id for future requests
     ++mMarketDataRequestId;
@@ -1001,6 +1046,39 @@ void IBKRClient::CancelMarketData(const DataRequestResult& requestResult)
     //mRequestId_To_LOB.erase(requestResult.RequestId);
     //mRequestId_To_ReceiveLOBOperationFunc.erase(requestResult.RequestId);
     //mRequestId_To_ReceiveLOBFunc.erase(requestResult.RequestId);
+}
+
+void IBKRClient::RequestAccountData(const AccountDataInfo& dataInfo, AccountRequestResult* result)
+{
+    std::string logMsg = std::string((std::string)"Account data request submitted." +
+        " Request Id: " + std::to_string(mAccountDataRequestId));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    // Fill the return structure
+    result->RequestId = mAccountDataRequestId;
+
+    // Save the receive function and object
+    mRequestId_To_ReceiveAccountPositionDataFunc[mAccountDataRequestId] = dataInfo.ReceiveAccountPositionDataFunctionPtr;
+    mRequestId_To_ReceiveAccountDataObject[mAccountDataRequestId] = dataInfo.ReceiveAccountDataObjectPtr;
+
+    // Increase the request id for future requests
+    ++mAccountDataRequestId;
+
+    // Inform the new subscriber of the positions we have stored so far
+    for (auto& pair : mAccountPositions)
+    {
+        ContractInfo contractInfo = pair.first;
+        double position = pair.second;
+        ReceiveAccountPositionDataFunction* receiveAccountPositionDataFunction = mRequestId_To_ReceiveAccountPositionDataFunc[result->RequestId];
+        void* receiveAccountDataObject = mRequestId_To_ReceiveAccountDataObject[result->RequestId];
+        receiveAccountPositionDataFunction(receiveAccountDataObject, result->RequestId, contractInfo, position);
+    }
+}
+
+void IBKRClient::CancelAccountData(const AccountRequestResult& requestResult)
+{
+    mRequestId_To_ReceiveAccountPositionDataFunc.erase(requestResult.RequestId);
+    mRequestId_To_ReceiveAccountDataObject.erase(requestResult.RequestId);
 }
 
 void IBKRClient::ManageOrder(const OrderInfo& orderInfo, PlaceOrderResult* result)
@@ -1106,7 +1184,7 @@ void IBKRClient::tickPrice(TickerId tickerId, TickType field, double price, cons
     mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 
     // Decide what to do based on the field type
-    void* receiveObj = mRequestId_To_ReceiveObject[tickerId];
+    void* receiveObj = mRequestId_To_ReceiveMarketDataObject[tickerId];
     ReceiveMarketDataType marketDataType;
     ReceivePriceDataType priceDataType;
     // For tick types see: http://interactivebrokers.github.io/tws-api/tick_types.html
@@ -1183,7 +1261,7 @@ void IBKRClient::tickSize(TickerId tickerId, TickType field, int size)
     mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 
     // Decide what to do based on the field type
-    void* receiveObj = mRequestId_To_ReceiveObject[tickerId];
+    void* receiveObj = mRequestId_To_ReceiveMarketDataObject[tickerId];
     ReceiveMarketDataType marketDataType;
     double price;
     // For tick types see: http://interactivebrokers.github.io/tws-api/tick_types.html
@@ -1415,7 +1493,7 @@ void IBKRClient::updateMktDepth(TickerId id, int position, int operation, int si
     LimitOrderBook* lobPtr = mRequestId_To_LOB[id].get();
     const LimitOrderBook::Side::Entry* entry = lobPtr->PerformOperation(position, "UNKWN", operation, side, price, size);
 
-    void* obj = mRequestId_To_ReceiveObject[id];
+    void* obj = mRequestId_To_ReceiveMarketDataObject[id];
     if (mRequestId_To_ReceiveLOBOperationFunc[id])
     {
         mRequestId_To_ReceiveLOBOperationFunc[id](obj, id, position, entry->MMId, operation, side, price, size);
@@ -1441,7 +1519,7 @@ void IBKRClient::updateMktDepthL2(TickerId id, int position, const std::string& 
     LimitOrderBook* lobPtr = mRequestId_To_LOB[id].get();
     const LimitOrderBook::Side::Entry* entry = lobPtr->PerformOperation(position, marketMaker, operation, side, price, size);
 
-    void* obj = mRequestId_To_ReceiveObject[id];
+    void* obj = mRequestId_To_ReceiveMarketDataObject[id];
     if (mRequestId_To_ReceiveLOBOperationFunc[id])
     {
         mRequestId_To_ReceiveLOBOperationFunc[id](obj, id, position, entry->MMId, operation, side, price, size);
@@ -1479,7 +1557,7 @@ void IBKRClient::historicalData(TickerId reqId, const Bar& bar)
         (std::string)", WAP: " + std::to_string(bar.count));
     mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 
-    void* obj = mRequestId_To_ReceiveObject[reqId];
+    void* obj = mRequestId_To_ReceiveMarketDataObject[reqId];
     if (mRequestId_To_ReceiveHistoricalDataFunc[reqId])
     {
         HistoricalBarEntry newBar;
@@ -1568,10 +1646,34 @@ void IBKRClient::commissionReport(const CommissionReport& commissionReport)
 
 void IBKRClient::position(const std::string& account, const Contract& contract, double position, double avgCost)
 {
+    ContractInfo contractInfo;
+    FromContractToContractInfo(contractInfo, contract);
+
+    std::string logMsg = std::string(
+        (std::string)"Position. Account: " + account +
+        (std::string)", Contract: " + contractInfo.ToShortString() +
+        (std::string)", Position: " + std::to_string(position) +
+        (std::string)", Average Cost: " + std::to_string(avgCost));
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
+
+    // Update the records
+    mAccountPositions[contractInfo] = position;
+
+    // Inform the subscribers
+    for (auto &pair : mRequestId_To_ReceiveAccountPositionDataFunc)
+    {
+        long requestId = pair.first;
+        ReceiveAccountPositionDataFunction *receiveAccountPositionDataFunction = pair.second;
+        void* receiveAccountDataObject = mRequestId_To_ReceiveAccountDataObject[requestId];
+        receiveAccountPositionDataFunction(receiveAccountDataObject, requestId, contractInfo, position);
+    }
 }
 
 void IBKRClient::positionEnd()
 {
+    std::string logMsg = std::string(
+        (std::string)"PositionEnd.");
+    mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 }
 
 void IBKRClient::accountSummary(int reqId, const std::string& account, const std::string& tag, const std::string& value, const std::string& curency)
@@ -1709,7 +1811,7 @@ void IBKRClient::historicalDataUpdate(TickerId reqId, const Bar& bar)
         (std::string)", WAP: " + std::to_string(bar.count));
     mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 
-    void* obj = mRequestId_To_ReceiveObject[reqId];
+    void* obj = mRequestId_To_ReceiveMarketDataObject[reqId];
     if (mRequestId_To_ReceiveHistoricalDataFunc[reqId])
     {
         HistoricalBarEntry newBar;
@@ -1782,7 +1884,7 @@ void IBKRClient::tickByTickAllLast(int reqId, int tickType, time_t time, double 
         (std::string)", SpecialConditions: " + specialConditions);
     mLogFunctionPtr(mLogObjectPtr, LogType::Debug, logMsg.c_str());
 
-    void* obj = mRequestId_To_ReceiveObject[reqId];
+    void* obj = mRequestId_To_ReceiveMarketDataObject[reqId];
     ReceiveTimeAndSalesType type = ReceiveTimeAndSalesType::Unknown;
     if (price <= mRequestIdDataType_To_PriceSize[reqId][ReceiveMarketDataType::Bid].first)
     {
